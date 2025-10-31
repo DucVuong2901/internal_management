@@ -1,0 +1,94 @@
+========================================
+DANH SACH FILE/THU MUC CAN SAO CHEP
+========================================
+
+QUAN TRONG: Sao chep TOAN BO cac file va thu muc sau de khong mat du lieu!
+
+┌─────────────────────────────────────────────────────────────┐
+│ FILE CHINH                                                 │
+├─────────────────────────────────────────────────────────────┤
+│ app.py                                                      │
+│ csv_storage.py                                              │
+│ file_storage.py                                             │
+│ requirements.txt                                            │
+│ users.csv              <--- DATABASE NGUOI DUNG (QUAN TRONG!)│
+│ README.md                                                   │
+│ INSTALL.md                                                   │
+│ run.bat (hoac run.sh)                                       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ THU MUC DU LIEU (QUAN TRONG - KHONG DUOC BO SOT!)        │
+├─────────────────────────────────────────────────────────────┤
+│ data/                                                       │
+│   ├── categories.json      <--- Danh muc                  │
+│   ├── edit_logs.json       <--- Lich su chinh sua          │
+│   ├── metadata.json         <--- Metadata                   │
+│   ├── notes/               <--- Ghi chu (toan bo)          │
+│   │   └── *.txt                                              │
+│   └── docs/                <--- Tai lieu (toan bo)         │
+│       └── *.txt                                              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ THU MUC FILE DINH KEM (QUAN TRONG!)                      │
+├─────────────────────────────────────────────────────────────┤
+│ uploads/                                                    │
+│   ├── notes/            <--- Hinh anh/file cua ghi chu      │
+│   │   └── *.*                                               │
+│   └── docs/             <--- Hinh anh/file cua tai lieu    │
+│       └── *.*                                               │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ THU MUC TEMPLATE (BAT BUOC)                              │
+├─────────────────────────────────────────────────────────────┤
+│ templates/                                                  │
+│   ├── base.html                                             │
+│   ├── dashboard.html                                        │
+│   ├── notes.html                                            │
+│   ├── docs.html                                             │
+│   ├── note_form.html                                        │
+│   ├── doc_form.html                                         │
+│   ├── view_note.html                                        │
+│   ├── view_doc.html                                         │
+│   ├── search.html                                           │
+│   ├── login.html                                            │
+│   ├── manage_users.html                                     │
+│   ├── manage_categories.html                                 │
+│   ├── edit_logs.html                                        │
+│   └── user_form.html                                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ THU MUC STATIC (BAT BUOC)                               │
+├─────────────────────────────────────────────────────────────┤
+│ static/                                                     │
+│   ├── style.css                                             │
+│   └── script.js                                             │
+└─────────────────────────────────────────────────────────────┘
+
+========================================
+CAC FILE/THU MUC KHONG CAN SAO CHEP:
+========================================
+
+❌ __pycache__/        (Tự động tạo lại)
+❌ *.pyc                (File compiled Python)
+❌ instance/            (Nếu có - database SQLite cũ)
+❌ .git/                (Nếu sử dụng git)
+❌ venv/                (Virtual environment - tự tạo lại)
+
+========================================
+KHUYEN NGHI:
+========================================
+
+1. Nen zip toan bo thu muc internal_management de de dang chuyen doi
+2. Sau khi giai nen, kiem tra lai cac file quan trong:
+   - users.csv
+   - data/metadata.json
+   - data/categories.json
+3. Chay run.bat (Windows) hoac run.sh (Linux/Mac) de khoi dong
+4. Doc file INSTALL.md de biet cach cai dat chi tiet
+
+========================================
+

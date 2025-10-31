@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Meta tags để không cache trang (bảo mật) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% block title %}Hệ thống Quản lý Nội bộ{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body {% if current_user.is_authenticated %}data-authenticated="true"{% endif %}>
+    <!-- Dark Mode Toggle (fixed top right, only one instance for all pages) -->
+    <button class="btn btn-light position-fixed top-0 end-0 m-3 shadow-sm" id="darkModeToggle" type="button" title="Chế độ sáng/tối" style="z-index:12000;">
+        <i class="bi bi-moon-stars" id="darkModeIcon"></i>
+    </button>
+    <!-- Navigation -->
+    {% if current_user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-pc"></i> NOTE CỦA ITSMS
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'notes' or request.endpoint.startswith('edit_note') or request.endpoint.startswith('new_note') %}active{% endif %}" href="{{ url_for('notes') }}">
+                            <i class="bi bi-sticky"></i> Ghi chú
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'docs' or request.endpoint.startswith('edit_doc') or request.endpoint.startswith('new_doc') %}active{% endif %}" href="{{ url_for('docs') }}">
+                            <i class="bi bi-file-earmark-text"></i> Tài liệu
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'search' %}active{% endif %}" href="{{ url_for('search') }}">
+                            <i class="bi bi-search"></i> Tìm kiếm
+                        </a>
+                    </li>
+                    {% if current_user.role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('manage_users') or request.endpoint.startswith('new_user') or request.endpoint.startswith('edit_user') or request.endpoint.startswith('manage_categories') or request.endpoint == 'edit_logs' %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-shield-check"></i> Quản trị
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('manage_users') }}">
+                                <i class="bi bi-people"></i> Quản lý người dùng
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('manage_categories') }}">
+                                <i class="bi bi-tags"></i> Quản lý danh mục
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('edit_logs') }}">
+                                <i class="bi bi-clock-history"></i> Lịch sử chỉnh sửa
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                <!-- Global Search -->
+                <form class="d-flex me-3" action="{{ url_for('search') }}" method="get">
+                    <input class="form-control me-2" type="search" name="q" placeholder="Tìm kiếm..." 
+                           value="{{ request.args.get('q', '') }}" id="globalSearch">
+                    <button class="btn btn-light" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+                
+                <!-- User Menu -->
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                        {% if current_user.role == 'admin' %}
+                        <span class="badge bg-danger ms-1">Admin</span>
+                        {% elif current_user.role == 'viewer' %}
+                        <span class="badge bg-info ms-1">Viewer</span>
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text">
+                            <i class="bi bi-envelope"></i> {{ current_user.email or 'Chưa có email' }}
+                        </span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    {% if category == 'error' %}
+                        {% set alert_class = 'danger' %}
+                    {% elif category == 'info' %}
+                        {% set alert_class = 'info' %}
+                    {% elif category == 'warning' %}
+                        {% set alert_class = 'warning' %}
+                    {% else %}
+                        {% set alert_class = 'success' %}
+                    {% endif %}
+                    <div class="alert alert-{{ alert_class }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="container my-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center py-3 mt-5">
+        <div class="container">
+            <p class="text-muted mb-0">&copy; 2025 Hệ thống này được tài trợ bởi AI xin đừng hỏi thêm.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    {% if current_user.is_authenticated %}
+    <!-- Session Management: CHỈ logout khi đóng trình duyệt, KHÔNG logout khi mở tab mới/chuyển tab/nhấn nút -->
+    <!-- Logic: Dựa vào session cookie (session-only, không có expires) để tự động logout khi đóng trình duyệt -->
+    <!-- KHÔNG có JavaScript nào force logout - chỉ dựa vào cookie tự xóa khi đóng trình duyệt -->
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

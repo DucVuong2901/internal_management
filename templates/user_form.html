@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}{% if user %}Chỉnh sửa{% else %}Tạo mới{% endif %} Người dùng - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">
+                    <i class="bi bi-{% if user %}pencil{% else %}person-plus{% endif %}"></i>
+                    {% if user %}Chỉnh sửa Người dùng{% else %}Tạo Người dùng Mới{% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Tên đăng nhập *</label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               value="{{ user.username if user else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ user.email if user else '' }}">
+                        <small class="form-text text-muted">Email không bắt buộc</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            Mật khẩu {% if user %}(để trống nếu không đổi){% else %}*{% endif %}
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               {% if not user %}required{% endif %}>
+                        <small class="form-text text-muted">
+                            {% if user %}
+                            Chỉ nhập mật khẩu nếu muốn thay đổi
+                            {% else %}
+                            Mật khẩu phải có ít nhất 6 ký tự
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Vai trò *</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="user" {% if user and user.role == 'user' %}selected{% endif %}>User (Có thể xem, tạo, sửa)</option>
+                            <option value="viewer" {% if user and user.role == 'viewer' %}selected{% endif %}>Viewer (Chỉ xem)</option>
+                            <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Admin (Toàn quyền)</option>
+                        </select>
+                    </div>
+                    {% if user %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                   {% if user.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">
+                                Tài khoản hoạt động
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Hủy
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Lưu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

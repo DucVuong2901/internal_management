@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}{{ doc.title | striptags }} - Xem Tài liệu{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto">
+        <div class="card shadow-lg">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">
+                        <i class="bi bi-file-earmark-text"></i> {{ doc.title | safe }}
+                    </h3>
+                    <small>
+                        <span class="badge bg-light text-dark">{{ doc.category }}</span>
+                        <span class="ms-2">
+                            <i class="bi bi-clock"></i> 
+                            Cập nhật: {{ doc.updated_at.strftime('%d/%m/%Y %H:%M') if doc.updated_at else '' }}
+                        </span>
+                    </small>
+                </div>
+                <a href="{{ url_for('docs') }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-x-lg"></i> Đóng
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="doc-content-full" style="line-height: 1.8; font-size: 1.05rem;">
+                    {{ doc.content | safe }}
+                </div>
+                
+                {% if doc.attachments %}
+                <hr>
+                <div class="mt-3">
+                    <h6><i class="bi bi-paperclip"></i> Hình ảnh và File đính kèm:</h6>
+                    <div class="row g-3">
+                        {% for attachment in doc.attachments %}
+                        {% set filename = attachment.get('filename', '') %}
+                        {% set original_filename = attachment.get('original_filename', filename) %}
+                        {% set filename_lower = filename|lower %}
+                        {% set is_image = false %}
+                        {% if '.jpg' in filename_lower or '.jpeg' in filename_lower or '.png' in filename_lower or '.gif' in filename_lower or '.bmp' in filename_lower or '.webp' in filename_lower %}
+                            {% set is_image = true %}
+                        {% endif %}
+                        {% if is_image %}
+                        <div class="col-md-3 col-sm-4 col-6">
+                            <div class="card h-100">
+                                <div class="card-body p-2 text-center">
+                                    <a href="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                       data-bs-toggle="modal" 
+                                       data-bs-target="#imageModal{{ loop.index }}"
+                                       style="cursor: pointer; text-decoration: none; display: block;">
+                                        <img src="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                             class="img-thumbnail w-100" 
+                                             style="max-height: 200px; object-fit: cover; cursor: pointer;"
+                                             alt="{{ original_filename }}">
+                                    </a>
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block text-truncate" title="{{ original_filename }}">
+                                            {{ original_filename }}
+                                        </small>
+                                        <a href="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                           class="btn btn-sm btn-outline-primary mt-1" target="_blank">
+                                            <i class="bi bi-download"></i> Tải
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Modal for full-size image -->
+                        <div class="modal fade" id="imageModal{{ loop.index }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ original_filename }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-center">
+                                        <img src="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                             class="img-fluid" 
+                                             alt="{{ original_filename }}">
+                                    </div>
+                                    <div class="modal-footer">
+                                        <a href="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                           class="btn btn-primary" target="_blank">
+                                            <i class="bi bi-download"></i> Tải xuống
+                                        </a>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-md-3 col-sm-4 col-6">
+                            <div class="card h-100">
+                                <div class="card-body p-2 text-center">
+                                    <div class="py-3">
+                                        <i class="bi bi-file-earmark display-4 text-primary"></i>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block text-truncate" title="{{ original_filename }}">
+                                            {{ original_filename }}
+                                        </small>
+                                        <a href="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                           class="btn btn-sm btn-outline-primary mt-1" target="_blank">
+                                            <i class="bi bi-download"></i> Tải xuống
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-light d-flex justify-content-between">
+                <small class="text-muted">
+                    <i class="bi bi-calendar"></i> 
+                    Tạo: {{ doc.created_at.strftime('%d/%m/%Y %H:%M') if doc.created_at else '' }}
+                    {% if doc.updated_at and doc.updated_at != doc.created_at %}
+                    | <i class="bi bi-pencil"></i> 
+                    Cập nhật: {{ doc.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                    {% endif %}
+                </small>
+                <div>
+                    {% if current_user.role != 'viewer' %}
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addAttachmentModal">
+                            <i class="bi bi-paperclip"></i> Thêm file ảnh
+                        </button>
+                        <a href="{{ url_for('edit_doc', id=doc.id) }}" class="btn btn-success btn-sm">
+                            <i class="bi bi-pencil"></i> Chỉnh sửa
+                        </a>
+                        {% if current_user.role == 'admin' %}
+                        <form method="post" action="{{ url_for('delete_doc', id=doc.id) }}" 
+                              onsubmit="return confirm('Bạn có chắc muốn xóa tài liệu này?');" class="d-inline">
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash"></i> Xóa
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                    <a href="{{ url_for('docs') }}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Quay lại
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal thêm file ảnh -->
+{% if current_user.role != 'viewer' %}
+<div class="modal fade" id="addAttachmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-paperclip"></i> Thêm file đính kèm
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{{ url_for('add_attachment_to_doc', id=doc.id) }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">Chọn file</label>
+                        <input type="file" class="form-control" id="attachments" name="attachments" multiple required>
+                        <small class="form-text text-muted">Có thể chọn nhiều file (hình ảnh, tài liệu, v.v.)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-upload"></i> Tải lên
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

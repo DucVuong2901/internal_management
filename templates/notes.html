@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block title %}Ghi chú - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="bi bi-sticky"></i> Ghi chú</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if current_user.role != 'viewer' %}
+        <a href="{{ url_for('new_note') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Ghi chú mới
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <!-- Category Tabs -->
+        <div class="mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <span class="text-muted me-2"><strong>Danh mục:</strong></span>
+                <a href="{{ url_for('notes', search=search_query) }}" 
+                   class="btn btn-sm {% if current_category == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    Tất cả
+                </a>
+                {% for cat in categories %}
+                <a href="{{ url_for('notes', category=cat, search=search_query) }}" 
+                   class="btn btn-sm {% if current_category == cat %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ cat }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+            <input type="hidden" name="category" value="{{ current_category }}">
+            <div class="col-md-10">
+                <input type="text" class="form-control" name="search" 
+                       placeholder="Tìm kiếm ghi chú..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Tìm
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Notes List -->
+{% if notes %}
+<div class="mb-3">
+    <small class="text-muted">
+        <i class="bi bi-file-text"></i> Hiển thị <strong>{{ notes|length }}</strong> ghi chú
+        {% if current_category != 'all' %}
+        trong danh mục "<strong>{{ current_category }}</strong>"
+        {% endif %}
+        {% if search_query %}
+        với từ khóa "<strong>{{ search_query }}</strong>"
+        {% endif %}
+    </small>
+</div>
+<div class="notes-masonry-container" id="notesContainer">
+    {% for note in notes %}
+    <div class="note-card-wrapper">
+        <div class="card shadow-sm clickable-card" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" 
+             data-url="{{ url_for('view_note', id=note.id) }}" data-note-id="{{ note.id }}"
+             onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.15)'"
+             onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <div class="text-dark">
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <h5 class="mb-0 flex-grow-1" style="font-size: 1.1rem;">{{ note.title | safe }}</h5>
+                    <div class="d-flex align-items-center gap-2 ms-2">
+                        <span class="badge bg-primary" style="font-size: 0.75rem;">{{ note.category }}</span>
+                        <div class="dropdown">
+                            <button class="btn btn-link dropdown-toggle p-0 m-0 border-0" type="button" id="dropdownMenu{{ note.id }}" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.3em; line-height:1; color: #333;">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu{{ note.id }}">
+                                {% if current_user.role != 'viewer' %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('edit_note', id=note.id) }}">
+                                            <i class="bi bi-pencil"></i> Chỉnh sửa
+                                        </a>
+                                    </li>
+                                    {% if current_user.role == 'admin' %}
+                                    <li>
+                                        <form method="post" action="{{ url_for('delete_note', id=note.id) }}" onsubmit="return confirm('Bạn có chắc muốn xóa ghi chú này?');">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-trash"></i> Xóa
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li class="px-3 py-2">
+                                    <div class="mb-2" style="font-size: 0.9rem;">Màu nền</div>
+                                    <div class="d-flex flex-wrap gap-2 note-color-palette" data-note-id="{{ note.id }}">
+                                        {% set colors = ['#ffffff', '#f5f5f5', '#fffbe6', '#e6f7ff', '#f6ffed', '#fff0f6', '#f0f5ff', '#f9f0ff', '#f0fff4'] %}
+                                        {% for c in colors %}
+                                        <button type="button" class="note-color-swatch" data-color="{{ c }}" data-note-id="{{ note.id }}" style="width:20px;height:20px;border-radius:4px;border:1px solid #ccc;"></button>
+                                        {% endfor %}
+                                    </div>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item clear-note-color" type="button" data-note-id="{{ note.id }}">
+                                        <i class="bi bi-eraser"></i> Xóa màu nền
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body d-flex flex-column" style="padding-bottom: 1rem; flex: 1;">
+                    <div class="note-content-preview mb-3" id="note-preview-{{ note.id }}" 
+                         style="overflow: hidden; position: relative; min-height: 100px; flex: 1;">
+                        <div class="card-text note-short" id="note-short-{{ note.id }}" 
+                             style="display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; color: #555; overflow: hidden; text-overflow: ellipsis; max-height: 96px;">
+                            {{ note.content[:200] | safe }}{% if note.content|length > 200 %}...{% endif %}
+                        </div>
+                            {% if note.content|length > 200 %}
+                        <a class="btn btn-link btn-sm p-0 mt-2 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
+                           style="font-size: 0.85em; text-decoration: none;" 
+                           onmouseover="this.style.textDecoration='underline'" 
+                           onmouseout="this.style.textDecoration='none'">
+                            <i class="bi bi-arrow-right"></i> Xem thêm
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if note.attachments %}
+                    <div class="attachments-preview d-flex flex-row gap-2 align-items-center flex-wrap mb-3 p-2 rounded" style="background-color: #f8f9fa; min-height: 60px; max-height: 80px; overflow: hidden;">
+                        {% for att in note.attachments %}
+                            {% set fname = att.get('filename', '')|lower %}
+                            {% set orig_name = att.get('original_filename', att.get('filename')) %}
+                            <div class="attachment-item text-center" style="width:auto; min-width:55px; max-width:90px;">
+                            {% if '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.bmp' in fname or '.webp' in fname %}
+                                <img src="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}" 
+                                     alt="{{ orig_name }}" style="width:40px; height:40px; object-fit:cover; border-radius:5px; border:1px solid #ddd; background: #fff; cursor:pointer;" loading="lazy"
+                                     class="open-image-modal" data-img-url="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}">
+                            {% else %}
+                                <a href="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}" target="_blank">
+                                    <i class="bi bi-file-earmark" style="font-size:28px; color: #146caa;"></i>
+                                </a>
+                            {% endif %}
+                                <div style="font-size:10px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:65px; margin:0 auto;" title="{{ orig_name }}">{{ orig_name }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="pt-2 border-top" style="margin-top: 0.5rem;">
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> 
+                            Cập nhật: {{ note.updated_at.strftime('%d/%m/%Y %H:%M') if note.updated_at else '' }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i> Không tìm thấy ghi chú nào.
+    <br>
+    <a href="{{ url_for('new_note') }}" class="btn btn-primary mt-2">
+        <i class="bi bi-plus-circle"></i> Tạo ghi chú đầu tiên
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Đảm bảo card không bị cắt */
+.note-card-wrapper {
+    display: inline-block;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.note-card-wrapper {
+    height: auto;
+}
+
+.note-card-wrapper .card {
+    display: block;
+    width: 100%;
+    min-height: 280px; /* Chiều cao tối thiểu cố định */
+    height: auto;
+}
+
+.notes-masonry-container {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    align-items: flex-start;
+}
+
+.notes-column {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Phân bố các thẻ vào các cột một cách cân bằng (giống Google Keep)
+    function distributeCards() {
+        const container = document.querySelector('#notesContainer');
+        if (!container) return;
+        
+        // Lấy tất cả các thẻ ghi chú
+        const wrappers = Array.from(container.querySelectorAll('.note-card-wrapper'));
+        if (wrappers.length === 0) return;
+        
+        // Xóa các cột cũ
+        const oldColumns = container.querySelectorAll('.notes-column');
+        oldColumns.forEach(col => col.remove());
+        
+        // Tính số cột
+        const parentContainer = container.parentElement;
+        const containerWidth = parentContainer ? parentContainer.offsetWidth : window.innerWidth;
+        let numColumns = 1;
+        
+        if (containerWidth < 768) {
+            numColumns = 1;
+        } else if (containerWidth < 1200) {
+            numColumns = 2;
+        } else {
+            numColumns = 3;
+        }
+        
+        // Tạo các cột mới
+        const columns = [];
+        const columnHeights = [];
+        for (let i = 0; i < numColumns; i++) {
+            const column = document.createElement('div');
+            column.className = 'notes-column';
+            container.appendChild(column);
+            columns.push(column);
+            columnHeights.push(0);
+        }
+        
+        // Tạo container ẩn để đo chiều cao
+        const hiddenContainer = document.createElement('div');
+        hiddenContainer.style.position = 'absolute';
+        hiddenContainer.style.visibility = 'hidden';
+        hiddenContainer.style.width = container.offsetWidth / numColumns + 'px';
+        document.body.appendChild(hiddenContainer);
+        
+        // Đo chiều cao của từng thẻ trong container ẩn
+        const cardHeights = wrappers.map(wrapper => {
+            const clone = wrapper.cloneNode(true);
+            hiddenContainer.appendChild(clone);
+            const height = clone.offsetHeight;
+            hiddenContainer.removeChild(clone);
+            return height + 24; // +24 là gap (1.5rem)
+        });
+        
+        // Xóa container ẩn
+        document.body.removeChild(hiddenContainer);
+        
+        // Phân bố các thẻ vào cột có chiều cao thấp nhất
+        wrappers.forEach((wrapper, index) => {
+            // Tìm cột có chiều cao thấp nhất
+            let minHeight = columnHeights[0];
+            let minIndex = 0;
+            for (let i = 1; i < columnHeights.length; i++) {
+                if (columnHeights[i] < minHeight) {
+                    minHeight = columnHeights[i];
+                    minIndex = i;
+                }
+            }
+            
+            // Thêm thẻ vào cột đó
+            columns[minIndex].appendChild(wrapper);
+            
+            // Cập nhật chiều cao của cột
+            columnHeights[minIndex] += cardHeights[index];
+        });
+    }
+    
+    // Phân bố khi load
+    distributeCards();
+    
+    // Throttle function để tránh tính toán quá nhiều khi resize
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            distributeCards();
+        }, 150); // Delay 150ms sau khi ngừng resize
+    });
+    
+    // Helpers for contrast
+    function hexToRgb(hex){
+        if (!hex) return {r:255,g:255,b:255};
+        hex = hex.replace('#','');
+        if (hex.length === 3) hex = hex.split('').map(function(c){return c+c;}).join('');
+        var num = parseInt(hex, 16);
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+    function getLuminance(hex){
+        var c = hexToRgb(hex);
+        function srgb(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); }
+        var r=srgb(c.r), g=srgb(c.g), b=srgb(c.b);
+        return 0.2126*r + 0.7152*g + 0.0722*b;
+    }
+    function applyAdaptiveTextColor(card, bgHex){
+        if (!card) return;
+        // Với yêu cầu mới: khi có nền tùy chỉnh, luôn dùng chữ đen
+        var textColor = '#212529';
+        card.style.color = textColor;
+        card.classList.add('custom-colored-note');
+    }
+
+    function applyCardBackground(card, color){
+        if (!card) return;
+        card.style.backgroundColor = color || '';
+        var header = card.querySelector('.card-header');
+        var body = card.querySelector('.card-body');
+        if (header) header.style.backgroundColor = color || '';
+        if (body) body.style.backgroundColor = color || '';
+    }
+
+    // Modal image preview
+    function createImageModal() {
+        if (document.getElementById('imageModalPopup')) return;
+        const modal = document.createElement('div');
+        modal.id = 'imageModalPopup';
+        modal.style.display = 'none';
+        modal.style.position = 'fixed';
+        modal.style.zIndex = '10500';
+        modal.style.left = '0';
+        modal.style.top = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.7)';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.overflow = 'hidden';
+        modal.innerHTML = `
+            <span id="closeImgModal" style="position:absolute;top:24px;right:44px;font-size:2rem;color:#fff;cursor:pointer;z-index:10;user-select:none;">&times;</span>
+            <button id="downloadImgBtn" style="position:absolute;top:24px;right:80px;background:rgba(0,0,0,0.6);border:none;color:#fff;padding:8px 16px;border-radius:5px;cursor:pointer;z-index:10;font-size:14px;display:flex;align-items:center;gap:6px;transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.8)'" onmouseout="this.style.background='rgba(0,0,0,0.6)'" title="Tải ảnh xuống">
+                <i class="bi bi-download"></i> Tải xuống
+            </button>
+            <div id="modal-img-container" style="position:relative;width:90vw;height:90vh;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;user-select:none;">
+                <img id="modal-img-content" src="" draggable="false" style="opacity:0;transition:opacity 0.3s ease-in-out;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;box-shadow:0 0 20px #000;border-radius:5px;user-select:none;pointer-events:auto;-webkit-user-drag:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;">
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    createImageModal();
+    
+    // Lưu URL của ảnh hiện tại để download
+    let currentImageUrl = '';
+    let currentImageFilename = '';
+    
+    // Function để download ảnh
+    function downloadImage() {
+        if (!currentImageUrl) return;
+        
+        // Lấy tên file từ URL hoặc sử dụng tên mặc định
+        const filename = currentImageFilename || 'image_' + Date.now() + '.jpg';
+        
+        // Tạo link tạm để download
+        const link = document.createElement('a');
+        link.href = currentImageUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    // Xử lý mở modal khi click thumbnail
+    document.querySelectorAll('.open-image-modal').forEach(function(img) {
+        img.addEventListener('click', function(e) {
+            e.stopPropagation();
+            let url = img.getAttribute('data-img-url') || img.src;
+            let modal = document.getElementById('imageModalPopup');
+            let modalImg = document.getElementById('modal-img-content');
+            let modalContainer = document.getElementById('modal-img-container');
+            
+            // Lưu URL và tên file để download
+            currentImageUrl = url;
+            // Lấy tên file từ URL hoặc từ thuộc tính alt
+            const urlParts = url.split('/');
+            currentImageFilename = urlParts[urlParts.length - 1] || 'image.jpg';
+            
+            // Đặt lại opacity về 0
+            modalImg.style.opacity = '0';
+            
+            // Hiển thị modal trước
+            modal.style.display = 'flex';
+            
+            // Preload ảnh trước khi hiển thị
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                // Sau khi ảnh load xong, mới đặt src cho ảnh trong modal
+                modalImg.src = url;
+                // Fade in ảnh
+                setTimeout(function() {
+                    modalImg.style.opacity = '1';
+                }, 10);
+            };
+            tempImg.onerror = function() {
+                modalImg.style.opacity = '1';
+                modalImg.src = url;
+            };
+            tempImg.src = url;
+        });
+    });
+    
+    // Xử lý nút download sau khi modal được tạo
+    setTimeout(function() {
+        const downloadBtn = document.getElementById('downloadImgBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                downloadImage();
+            });
+            
+            // Ngăn đóng modal khi click vào nút download
+            downloadBtn.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+        }
+    }, 100);
+    
+    // Đóng modal khi bấm ra ngoài ảnh hoặc bấm dấu X
+    const modal = document.getElementById('imageModalPopup');
+    modal.addEventListener('click', function(e) {
+        // Đóng khi click vào modal chính (nền đen), container, hoặc nút X
+        // CHỈ KHÔNG đóng khi click vào ảnh (đã được stopPropagation ở phần khác)
+        const modalImg = document.getElementById('modal-img-content');
+        const modalContainer = document.getElementById('modal-img-container');
+        
+        // Đóng nếu click vào nền đen, nút X, hoặc container (nhưng không phải ảnh và không phải nút download)
+        if ((e.target.id === 'imageModalPopup' || 
+             e.target.id === 'closeImgModal' || 
+             (modalContainer && e.target === modalContainer && e.target !== modalImg)) &&
+            e.target.id !== 'downloadImgBtn' && 
+            e.target.closest('#downloadImgBtn') === null) {
+            // Fade out trước khi đóng
+            if (modalImg) {
+                modalImg.style.opacity = '0';
+            }
+            setTimeout(function() {
+                this.style.display = 'none';
+                if (modalImg) {
+                    modalImg.src = '';
+                }
+            }.bind(this), 300);
+        }
+    });
+    
+    // Ngăn đóng modal khi click vào ảnh và vô hiệu hóa các tương tác không mong muốn
+    setTimeout(function() {
+        const modalImg = document.getElementById('modal-img-content');
+        const modalContainer = document.getElementById('modal-img-container');
+        const modal = document.getElementById('imageModalPopup');
+        
+        if (modalImg) {
+            // Ngăn click đóng modal
+            modalImg.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Vô hiệu hóa drag
+            modalImg.addEventListener('dragstart', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Vô hiệu hóa context menu (chuột phải)
+            modalImg.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Vô hiệu hóa select
+            modalImg.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+                return false;
+            });
+        }
+        
+        if (modalContainer) {
+            // Chỉ ngăn propagation khi click vào ảnh, còn click vào container sẽ đóng modal
+            modalContainer.addEventListener('click', function(e) {
+                // Nếu click vào ảnh, ngăn propagation để không đóng modal
+                if (e.target === modalImg || e.target.id === 'modal-img-content') {
+                    e.stopPropagation();
+                }
+                // Nếu click vào container (không phải ảnh), không ngăn propagation để modal đóng
+            });
+        }
+        
+        // Thêm phím tắt ESC để đóng modal
+        function handleEscapeKey(e) {
+            if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                const modalImg = document.getElementById('modal-img-content');
+                if (modalImg) {
+                    modalImg.style.opacity = '0';
+                    setTimeout(function() {
+                        modal.style.display = 'none';
+                        modalImg.src = '';
+                    }, 300);
+                }
+            }
+        }
+        
+        // Thêm event listener cho phím ESC
+        document.addEventListener('keydown', handleEscapeKey);
+    }, 100);
+
+    // Xử lý click vào card để xem chi tiết
+    document.querySelectorAll('.clickable-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            // Không điều hướng nếu click vào control trong card: button, form, link, input...
+            if (!e.target.closest('.card-footer, .btn, form, a[href], input, select, label, .dropdown-menu')) {
+                window.location.href = card.dataset.url;
+            }
+        });
+    });
+
+    // Áp dụng màu nền từ localStorage khi load
+    document.querySelectorAll('.clickable-card').forEach(function(card){
+        var noteId = card.getAttribute('data-note-id');
+        var saved = localStorage.getItem('noteColor:' + noteId);
+        if (saved) {
+            applyCardBackground(card, saved);
+            applyAdaptiveTextColor(card, saved);
+        }
+    });
+
+    // Tô màu các swatch theo data-color
+    document.querySelectorAll('.note-color-swatch').forEach(function(btn){
+        var color = btn.getAttribute('data-color');
+        if (color) btn.style.backgroundColor = color;
+    });
+
+    // Chọn màu nền
+    // Loại bỏ input color trước đó, dùng swatch buttons
+    document.querySelectorAll('.note-color-swatch').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            e.stopPropagation();
+            var color = btn.getAttribute('data-color');
+            var noteId = btn.getAttribute('data-note-id');
+            var card = document.querySelector('.clickable-card[data-note-id="' + noteId + '"]');
+            if (card) {
+                applyCardBackground(card, color);
+                applyAdaptiveTextColor(card, color);
+            }
+            localStorage.setItem('noteColor:' + noteId, color);
+            // đóng dropdown sau khi chọn
+            const dropdown = btn.closest('.dropdown-menu');
+            if (dropdown) {
+                const toggle = dropdown.parentElement.querySelector('[data-bs-toggle="dropdown"]');
+                if (toggle) {
+                    try { new bootstrap.Dropdown(toggle).hide(); } catch(err) {}
+                }
+            }
+        });
+    });
+
+    // Xóa màu nền
+    document.querySelectorAll('.clear-note-color').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            e.stopPropagation();
+            var noteId = btn.getAttribute('data-note-id');
+            var card = document.querySelector('.clickable-card[data-note-id="' + noteId + '"]');
+            if (card) {
+                applyCardBackground(card, '');
+                card.style.color = '';
+                card.classList.remove('custom-colored-note');
+            }
+            localStorage.removeItem('noteColor:' + noteId);
+        });
+    });
+});
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,81 @@
+========================================
+   HUONG DAN NHANH CHUYEN MAY
+========================================
+
+BUOC 1: DONG GOI (TAO FILE ZIP)
+---------------------------------
+- Chon toan bo thu muc "internal_management"
+- Nen ZIP (chuot phai -> Send to -> Compressed folder)
+- Ten file: internal_management_backup.zip
+
+BUOC 2: CHUYEN FILE ZIP SANG MAY MOI
+-------------------------------------
+- Copy qua USB, email, cloud, hoac mang noi bo
+
+BUOC 3: GIAI NEN TREN MAY MOI
+---------------------------------
+- Giai nen file ZIP vao mot thu muc
+- Mo Command Prompt/PowerShell tai thu muc do
+
+BUOC 4: CAI DAT DEPENDENCIES (NEU CHUA CAI)
+---------------------------------
+Windows:
+  install_dependencies.bat
+
+Linux/Mac:
+  chmod +x install_dependencies.sh
+  ./install_dependencies.sh
+
+HOAC chay thu cong:
+  pip install -r requirements.txt
+
+BUOC 5: CHAY UNG DUNG
+---------------------------------
+Windows:
+  run.bat
+
+Linux/Mac:
+  chmod +x run.sh
+  ./run.sh
+
+HOAC chay thu cong:
+  python app.py
+
+========================================
+   CAC FILE QUAN TRONG CAN SAO CHEP
+========================================
+
+✅ users.csv          (Database nguoi dung)
+✅ data/              (Toan bo - notes, docs, metadata)
+✅ uploads/           (Toan bo - file dinh kem)
+✅ templates/         (Templates HTML)
+✅ static/            (CSS, JavaScript)
+
+========================================
+   THONG TIN DANG NHAP MAC DINH
+========================================
+
+Username: admin
+Password: admin
+
+⚠️ DOI MAT KHAU NGAY SAU LAN DANG NHAP DAU TIEN!
+
+========================================
+   TRUY CAP
+========================================
+
+Sau khi chay, mo trinh duyet:
+http://localhost:5000
+
+========================================
+   HUONG DAN CHI TIET
+========================================
+
+Xem file:
+- INSTALL.md         (Huong dan cai dat chi tiet)
+- PACKAGE_GUIDE.md   (Huong dan dong goi chi tiet)
+- FILES_TO_COPY.txt  (Danh sach file can sao chep)
+- README.md          (Tai lieu day du)
+
+========================================
+

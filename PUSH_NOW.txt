@@ -1,0 +1,67 @@
+========================================
+   HUONG DAN NHANH PUSH CODE LEN GITHUB
+   Repository: DucVuong2901/internal_management
+========================================
+
+BAN DANG DUNG GITHUB DESKTOP - DAY LA CACH DE NHAT!
+
+CACH 1: DUNG GITHUB DESKTOP (KHUYEN DUNG)
+-----------------------------------------
+1. Trong GitHub Desktop, dong dialog "Clone a repository" neu dang mo
+
+2. Click: File -> Add Local Repository
+   (Hoac drag & drop thu muc D:\internal_management vao GitHub Desktop)
+
+3. Chon thu muc: D:\internal_management
+
+4. Neu bao "This directory does not appear to be a Git repository":
+   -> Click "create a repository" hoac
+   -> Chay file: init_git.bat truoc
+
+5. Trong GitHub Desktop, ban se thay tat ca file can commit
+
+6. Nhap commit message:
+   "Initial commit: He thong Quan ly Noi bo - Support Windows and Linux"
+
+7. Click: "Commit to main"
+
+8. Click: "Publish repository" (nut tren cung)
+
+9. Dam bao URL: https://github.com/DucVuong2901/internal_management.git
+
+10. Click: "Publish Repository"
+
+=> XONG! Code da len GitHub!
+
+
+CACH 2: CAI GIT VA CHAY SCRIPT
+--------------------------------
+1. Cai Git: https://git-scm.com/download/win
+
+2. Khoi dong lai Command Prompt
+
+3. Chay:
+   cd D:\internal_management
+   QUICK_PUSH.bat
+
+Hoac chay: push_to_github.bat
+
+
+CACH 3: SU DUNG COMMAND LINE
+-----------------------------
+Neu da cai Git, mo Command Prompt:
+
+cd D:\internal_management
+git init
+git remote add origin https://github.com/DucVuong2901/internal_management.git
+git add .
+git commit -m "Initial commit: He thong Quan ly Noi bo - Support Windows and Linux"
+git branch -M main
+git push -u origin main
+
+
+XEM CHI TIET:
+- GITHUB_DESKTOP_GUIDE.md (dung GitHub Desktop)
+- DEPLOY_NOW.md (huong dan day du)
+- GIT_QUICKSTART.md (huong dan nhanh)
+

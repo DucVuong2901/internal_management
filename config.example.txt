@@ -1,0 +1,82 @@
+========================================
+   CAU HINH TEN MIEN CHO UNG DUNG
+========================================
+
+CACH 1: DUNG ENVIRONMENT VARIABLE (KHUYEN NGHI)
+------------------------------------------------
+
+Windows PowerShell:
+  $env:DOMAIN_NAME="mydomain.com"
+  python app.py
+
+  HOAC
+
+  $env:DOMAIN_NAME="192.168.1.100"
+  python app.py
+
+Windows Command Prompt:
+  set DOMAIN_NAME=mydomain.com
+  python app.py
+
+Linux/Mac:
+  export DOMAIN_NAME=mydomain.com
+  python app.py
+
+  HOAC
+
+  DOMAIN_NAME=192.168.1.100 python app.py
+
+------------------------------------------------
+CACH 2: SUA TRUC TIEP TRONG FILE app.py
+------------------------------------------------
+
+Tim dong:
+  DOMAIN_NAME = os.environ.get('DOMAIN_NAME', None)
+
+Thay doi thanh:
+  DOMAIN_NAME = os.environ.get('DOMAIN_NAME', 'mydomain.com')
+
+------------------------------------------------
+VI DU SU DUNG
+------------------------------------------------
+
+1. Truy cap bang localhost (mac dinh):
+   http://localhost:5000
+
+2. Truy cap bang IP:
+   set DOMAIN_NAME=192.168.1.100
+   http://192.168.1.100:5000
+
+3. Truy cap bang ten mien:
+   set DOMAIN_NAME=mydomain.com
+   http://mydomain.com:5000
+
+4. Neu ten mien da co port trong hosts file:
+   set DOMAIN_NAME=mydomain.com:5000
+   http://mydomain.com:5000
+
+------------------------------------------------
+CAU HINH HOSTS FILE (DE DUNG TEN MIEN)
+------------------------------------------------
+
+Windows: C:\Windows\System32\drivers\etc\hosts
+Linux/Mac: /etc/hosts
+
+Them dong:
+  127.0.0.1    mydomain.com
+  192.168.1.100  mydomain.com
+
+Sau do set:
+  set DOMAIN_NAME=mydomain.com
+
+------------------------------------------------
+LUU Y
+------------------------------------------------
+
+- Neu khong set DOMAIN_NAME, ung dung van chay binh thuong
+- Neu set DOMAIN_NAME, ung dung se hien thi thong bao truy cap
+- De truy cap tu may khac trong mang, su dung IP cua may nay
+- Neu dung ten mien that, can cau hinh DNS hoac hosts file
+
+========================================
+

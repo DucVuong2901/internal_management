@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}{% if doc %}Chỉnh sửa{% else %}Tạo mới{% endif %} Tài liệu - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editor = document.getElementById('editor');
+    const contentTextarea = document.getElementById('content');
+    const titleEditor = document.getElementById('title-editor');
+    const titleInput = document.getElementById('title');
+    
+    // Kiểm tra các element có tồn tại không
+    if (!editor || !contentTextarea || !titleEditor || !titleInput) {
+        console.error('Các element cần thiết không tìm thấy!');
+        return;
+    }
+    
+    // Sync content từ editor đến textarea trước khi submit
+    const form = editor.closest('form');
+    if (!form) {
+        console.error('Form không tìm thấy!');
+        return;
+    }
+    
+    form.addEventListener('submit', function(e) {
+        try {
+            // Lấy HTML từ title editor để giữ định dạng (bold, italic, etc.)
+            const titleText = titleEditor.innerText || titleEditor.textContent || '';
+            const titleHTML = titleEditor.innerHTML || '';
+            
+            // Validation: Kiểm tra có nội dung thực sự (không chỉ HTML tags)
+            if (!titleText.trim()) {
+                e.preventDefault();
+                alert('Vui lòng nhập tiêu đề!');
+                titleEditor.focus();
+                return false;
+            }
+            
+            // Lưu HTML để giữ định dạng
+            titleInput.value = titleHTML.trim();
+            
+            // Lấy nội dung HTML từ editor
+            const contentHTML = editor.innerHTML || '';
+            contentTextarea.value = contentHTML || '';
+            
+            console.log('Form submitted - Title:', titleText.substring(0, 50), 'Content length:', contentHTML.length);
+        } catch (error) {
+            console.error('Lỗi khi submit form:', error);
+            // Vẫn cho phép submit nếu có lỗi nhỏ, để form validation của server xử lý
+            // Chỉ điền giá trị cơ bản nếu có thể
+            try {
+                const titleText = titleEditor.innerText || titleEditor.textContent || '';
+                if (titleText.trim()) {
+                    titleInput.value = titleEditor.innerHTML || titleText;
+                }
+                const contentHTML = editor.innerHTML || '';
+                contentTextarea.value = contentHTML || '';
+            } catch (e2) {
+                console.error('Lỗi khi điền giá trị dự phòng:', e2);
+            }
+        }
+    });
+    
+    // Phím tắt cho content
+    editor.addEventListener('keydown', function(e) {
+        // Ctrl+B cho bold
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            formatText('bold');
+        }
+        // Ctrl+I cho italic
+        if (e.ctrlKey && e.key === 'i') {
+            e.preventDefault();
+            formatText('italic');
+        }
+        // Ctrl+U cho underline
+        if (e.ctrlKey && e.key === 'u') {
+            e.preventDefault();
+            formatText('underline');
+        }
+    });
+    
+    // Phím tắt cho title
+    titleEditor.addEventListener('keydown', function(e) {
+        // Ctrl+B cho bold
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            formatTitleText('bold');
+        }
+        // Ctrl+I cho italic
+        if (e.ctrlKey && e.key === 'i') {
+            e.preventDefault();
+            formatTitleText('italic');
+        }
+        // Ctrl+U cho underline
+        if (e.ctrlKey && e.key === 'u') {
+            e.preventDefault();
+            formatTitleText('underline');
+        }
+    });
+});
+
+function formatText(command) {
+    document.execCommand(command, false, null);
+    document.getElementById('editor').focus();
+}
+
+function formatTextSize(size) {
+    if (!size) return;
+    
+    const editor = document.getElementById('editor');
+    const selection = window.getSelection();
+    
+    if (selection.rangeCount === 0) {
+        editor.focus();
+        return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    
+    if (selection.isCollapsed || range.collapsed) {
+        // No text selected, create a span at cursor position for future typing
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        span.innerHTML = '\u200B'; // Zero-width space
+        range.insertNode(span);
+        range.setStartAfter(span);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        editor.focus();
+    } else {
+        // Text is selected, wrap it
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        try {
+            range.surroundContents(span);
+        } catch (e) {
+            // If surroundContents fails, extract and wrap
+            const contents = range.extractContents();
+            span.appendChild(contents);
+            range.insertNode(span);
+        }
+        editor.focus();
+    }
+}
+
+function formatTextColor(color) {
+    document.execCommand('foreColor', false, color);
+    document.getElementById('editor').focus();
+}
+
+function handlePaste(e) {
+    e.preventDefault();
+    const clipboardData = e.clipboardData || window.clipboardData;
+    
+    // Ưu tiên lấy HTML để giữ định dạng
+    let html = clipboardData.getData('text/html');
+    
+    if (html) {
+        // Nếu có HTML, insert trực tiếp
+        document.execCommand('insertHTML', false, html);
+    } else {
+        // Nếu không có HTML, lấy text và chuyển đổi xuống dòng
+        let text = clipboardData.getData('text/plain');
+        
+        // Chuyển đổi các ký tự xuống dòng thành <br>
+        // Giữ nhiều dòng trống thành <br><br>
+        text = text
+            .replace(/\r\n/g, '\n')  // Chuẩn hóa Windows line breaks
+            .replace(/\r/g, '\n')    // Chuẩn hóa Mac line breaks
+            .replace(/\n\n+/g, '\n\n') // Giữ tối đa 2 dòng trống liên tiếp
+            .replace(/\n/g, '<br>');   // Chuyển đổi \n thành <br>
+        
+        document.execCommand('insertHTML', false, text);
+    }
+    
+    // Focus lại editor sau khi paste
+    document.getElementById('editor').focus();
+}
+
+// Functions for title editor
+function formatTitleText(command) {
+    document.execCommand(command, false, null);
+    document.getElementById('title-editor').focus();
+}
+
+function formatTitleTextSize(size) {
+    if (!size) return;
+    
+    const editor = document.getElementById('title-editor');
+    const selection = window.getSelection();
+    
+    if (selection.rangeCount === 0) {
+        editor.focus();
+        return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    
+    if (selection.isCollapsed || range.collapsed) {
+        // No text selected, create a span at cursor position for future typing
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        span.innerHTML = '\u200B'; // Zero-width space
+        range.insertNode(span);
+        range.setStartAfter(span);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        editor.focus();
+    } else {
+        // Text is selected, wrap it
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        try {
+            range.surroundContents(span);
+        } catch (e) {
+            // If surroundContents fails, extract and wrap
+            const contents = range.extractContents();
+            span.appendChild(contents);
+            range.insertNode(span);
+        }
+        editor.focus();
+    }
+}
+
+function formatTitleTextColor(color) {
+    document.execCommand('foreColor', false, color);
+    document.getElementById('title-editor').focus();
+}
+
+function handleTitlePaste(e) {
+    e.preventDefault();
+    const clipboardData = e.clipboardData || window.clipboardData;
+    
+    // Ưu tiên lấy HTML để giữ định dạng
+    let html = clipboardData.getData('text/html');
+    
+    if (html) {
+        // Nếu có HTML, insert trực tiếp nhưng loại bỏ các thẻ block (p, div) vì tiêu đề nên là inline
+        html = html.replace(/<\/?(p|div|h[1-6])[^>]*>/gi, '').trim();
+        document.execCommand('insertHTML', false, html);
+    } else {
+        // Nếu không có HTML, lấy text và chuyển đổi xuống dòng thành space
+        let text = clipboardData.getData('text/plain');
+        
+        // Trong tiêu đề, xuống dòng sẽ thành space
+        text = text
+            .replace(/\r\n/g, ' ')
+            .replace(/\r/g, ' ')
+            .replace(/\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        
+        document.execCommand('insertHTML', false, text);
+    }
+    
+    // Focus lại title editor sau khi paste
+    document.getElementById('title-editor').focus();
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">
+                    <i class="bi bi-{% if doc %}pencil{% else %}plus-circle{% endif %}"></i>
+                    {% if doc %}Chỉnh sửa Tài liệu{% else %}Tài liệu Mới{% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Tiêu đề</label>
+                        <div id="title-toolbar" class="border rounded-top p-2 bg-light">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatTitleText('bold')" title="In đậm">
+                                <i class="bi bi-type-bold"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatTitleText('italic')" title="In nghiêng">
+                                <i class="bi bi-type-italic"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatTitleText('underline')" title="Gạch chân">
+                                <i class="bi bi-type-underline"></i>
+                            </button>
+                            <span class="border-start mx-2"></span>
+                            <select class="form-select form-select-sm d-inline-block" style="width: auto;" onchange="formatTitleTextSize(this.value)" title="Kích thước chữ">
+                                <option value="">Kích thước</option>
+                                <option value="14px">14px</option>
+                                <option value="16px" selected>16px</option>
+                                <option value="18px">18px</option>
+                                <option value="20px">20px</option>
+                                <option value="24px">24px</option>
+                                <option value="28px">28px</option>
+                                <option value="32px">32px</option>
+                                <option value="36px">36px</option>
+                            </select>
+                            <span class="border-start mx-2"></span>
+                            <input type="color" class="form-control form-control-sm d-inline-block" style="width: 60px; height: 32px;" 
+                                   onchange="formatTitleTextColor(this.value)" title="Màu chữ" id="titleColor">
+                            <span class="border-start mx-2"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatTitleText('removeFormat')" title="Xóa định dạng">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                        <div id="title-editor" contenteditable="true" class="form-control border rounded-bottom" 
+                             style="min-height: 50px; padding: 10px; overflow-y: auto; font-size: 1.1rem; font-weight: 500;"
+                             onpaste="handleTitlePaste(event)">{{ doc.title | safe if doc else '' }}</div>
+                        <input type="text" id="title" name="title" style="display: none;">
+                        <small class="form-text text-muted">Bạn có thể định dạng tiêu đề bằng các công cụ trên</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Danh mục</label>
+                        <select class="form-select" id="category" name="category" required>
+                            {% for cat in categories %}
+                                <option value="{{ cat }}" {% if (doc and doc.category == cat) or (not doc and cat == 'general') %}selected{% endif %}>
+                                    {{ cat }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Chọn danh mục từ danh sách có sẵn</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Nội dung</label>
+                        <div id="editor-toolbar" class="border rounded-top p-2 bg-light">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('bold')" title="In đậm">
+                                <i class="bi bi-type-bold"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('italic')" title="In nghiêng">
+                                <i class="bi bi-type-italic"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('underline')" title="Gạch chân">
+                                <i class="bi bi-type-underline"></i>
+                            </button>
+                            <span class="border-start mx-2"></span>
+                            <select class="form-select form-select-sm d-inline-block" style="width: auto;" onchange="formatTextSize(this.value)" title="Kích thước chữ">
+                                <option value="">Kích thước</option>
+                                <option value="8px">8px</option>
+                                <option value="10px">10px</option>
+                                <option value="12px">12px</option>
+                                <option value="14px" selected>14px</option>
+                                <option value="16px">16px</option>
+                                <option value="18px">18px</option>
+                                <option value="20px">20px</option>
+                                <option value="24px">24px</option>
+                                <option value="28px">28px</option>
+                                <option value="32px">32px</option>
+                            </select>
+                            <span class="border-start mx-2"></span>
+                            <input type="color" class="form-control form-control-sm d-inline-block" style="width: 60px; height: 32px;" 
+                                   onchange="formatTextColor(this.value)" title="Màu chữ" id="textColor">
+                            <span class="border-start mx-2"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('removeFormat')" title="Xóa định dạng">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                        <div id="editor" contenteditable="true" class="form-control border rounded-bottom" 
+                             style="min-height: 300px; padding: 15px; overflow-y: auto;"
+                             onpaste="handlePaste(event)">{{ doc.content | safe if doc else '' }}</div>
+                        <textarea id="content" name="content" style="display: none;"></textarea>
+                        <small class="form-text text-muted">Bạn có thể định dạng text bằng các công cụ trên hoặc phím tắt: Ctrl+B (đậm), Ctrl+I (nghiêng)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">
+                            <i class="bi bi-paperclip"></i> Đính kèm file
+                        </label>
+                        <input type="file" class="form-control" id="attachments" name="attachments" multiple>
+                        <small class="form-text text-muted">Có thể chọn nhiều file (hình ảnh, tài liệu, v.v.)</small>
+                    </div>
+                    {% if doc and doc.attachments %}
+                    <div class="mb-3">
+                        <label class="form-label">File đính kèm hiện có:</label>
+                        <div class="list-group">
+                            {% for attachment in doc.attachments %}
+                            {% set filename = attachment.get('filename', '') %}
+                            {% set original_filename = attachment.get('original_filename', filename) %}
+                            {% set is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')) %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        {% if is_image %}
+                                        <div class="mb-2">
+                                            <img src="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                                 class="img-thumbnail" 
+                                                 style="max-width: 200px; max-height: 150px; object-fit: cover;"
+                                                 alt="{{ original_filename }}">
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <i class="bi bi-file-earmark"></i> 
+                                            <a href="{{ url_for('download_doc_attachment', doc_id=doc.id, filename=filename) }}" target="_blank">
+                                                {{ original_filename }}
+                                            </a>
+                                            {% if is_image %}
+                                            <span class="badge bg-info ms-2">Hình ảnh</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if current_user.role != 'viewer' %}
+                                    <form method="post" action="{{ url_for('delete_doc_attachment', doc_id=doc.id, filename=filename) }}" 
+                                          onsubmit="return confirm('Bạn có chắc muốn xóa file này?');" class="d-inline ms-2">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('docs') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Hủy
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Lưu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

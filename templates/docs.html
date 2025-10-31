@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Tài liệu - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="bi bi-file-earmark-text"></i> Tài liệu Nội bộ</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if current_user.role != 'viewer' %}
+        <a href="{{ url_for('new_doc') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Tài liệu mới
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" class="form-control" name="search" 
+                       placeholder="Tìm kiếm tài liệu..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" name="category" onchange="this.form.submit()">
+                    <option value="all" {% if current_category == 'all' %}selected{% endif %}>Tất cả danh mục</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-search"></i> Tìm
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Documents List -->
+{% if docs %}
+<div class="row">
+    {% for doc in docs %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> {{ doc.title | safe }}</h5>
+                <span class="badge bg-primary">{{ doc.category }}</span>
+            </div>
+            <div class="card-body">
+                <div class="doc-content-preview" id="doc-preview-{{ doc.id }}" 
+                     style="max-height: 150px; overflow: hidden; position: relative;">
+                    <div class="card-text mb-2" style="line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">
+                        {{ doc.content | safe }}
+                    </div>
+                    <div class="content-fade"></div>
+                </div>
+                {% if doc.attachments %}
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="bi bi-paperclip"></i> {{ doc.attachments|length }} file đính kèm
+                        {% set has_images = false %}
+                        {% for att in doc.attachments %}
+                            {% set fname = att.get('filename', '')|lower %}
+                            {% if '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.bmp' in fname or '.webp' in fname %}
+                                {% set has_images = true %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if has_images %}
+                        <span class="badge bg-info text-white ms-1">Có hình ảnh</span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+                <small class="text-muted d-block">
+                    <i class="bi bi-clock"></i> 
+                    Cập nhật: {{ doc.updated_at.strftime('%d/%m/%Y %H:%M') if doc.updated_at else '' }}
+                </small>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                    <a href="{{ url_for('view_doc', id=doc.id) }}" class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-eye"></i> Xem chi tiết
+                    </a>
+                    {% if current_user.role != 'viewer' %}
+                        <a href="{{ url_for('edit_doc', id=doc.id) }}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-pencil"></i> Chỉnh sửa
+                        </a>
+                        {% if current_user.role == 'admin' %}
+                        <form method="post" action="{{ url_for('delete_doc', id=doc.id) }}" 
+                              onsubmit="return confirm('Bạn có chắc muốn xóa tài liệu này?');" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Xóa
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i> Không tìm thấy tài liệu nào.
+    <br>
+    <a href="{{ url_for('new_doc') }}" class="btn btn-success mt-2">
+        <i class="bi bi-plus-circle"></i> Tạo tài liệu đầu tiên
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+

@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Database (old SQLite - not used anymore)
+*.db
+*.sqlite
+*.sqlite3
+internal_app.db
+
+# User data - KHÔNG commit dữ liệu thực tế vào GitHub
+# Chỉ commit cấu trúc thư mục, không commit dữ liệu
+data/users.csv
+data/metadata.json
+data/edit_logs.json
+data/categories.json
+data/notes/*.txt
+data/docs/*.txt
+data/uploads/**
+!data/notes/.gitkeep
+!data/docs/.gitkeep
+!data/uploads/.gitkeep
+!data/uploads/notes/.gitkeep
+!data/uploads/docs/.gitkeep
+
+# Old uploads directory (deprecated)
+uploads/**
+
+# Instance folder (Flask)
+instance/**
+!instance/.gitkeep
+

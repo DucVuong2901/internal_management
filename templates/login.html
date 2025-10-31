@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng nhập - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="w-100 text-center py-3 bg-primary text-white rounded shadow-sm">
+        <span class="fw-bold" style="font-size: 2rem; letter-spacing: 2px;">IT NOTE</span>
+    </div>
+</div>
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-primary text-white text-center">
+                <h3 class="mb-0">
+                    <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                </h3>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="bi bi-person"></i> Tên đăng nhập
+                        </label>
+                        <input type="text" class="form-control form-control-lg" 
+                               id="username" name="username" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="bi bi-lock"></i> Mật khẩu
+                        </label>
+                        <input type="password" class="form-control form-control-lg" 
+                               id="password" name="password" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer bg-light text-center">
+                <small class="text-muted">
+                    Cần account liên hệ Đức đẹp trai
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Note đi mấy cưng{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-4"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+        <p class="lead">Note vào và đừng hỏi
+        </p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title"><i class="bi bi-sticky"></i> Tổng Ghi chú</h5>
+                        <h2 class="mb-0">{{ notes_count }}</h2>
+                    </div>
+                    <div class="display-1 opacity-50">
+                        <i class="bi bi-sticky-fill"></i>
+                    </div>
+                </div>
+                <a href="{{ url_for('notes') }}" class="text-white text-decoration-none">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title"><i class="bi bi-file-earmark-text"></i> Tổng Tài liệu</h5>
+                        <h2 class="mb-0">{{ docs_count }}</h2>
+                    </div>
+                    <div class="display-1 opacity-50">
+                        <i class="bi bi-file-earmark-text-fill"></i>
+                    </div>
+                </div>
+                <a href="{{ url_for('docs') }}" class="text-white text-decoration-none">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Items -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Ghi chú gần đây</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_notes %}
+                    <div class="list-group list-group-flush">
+                        {% for note in recent_notes %}
+                        <a href="{{ url_for('notes') }}?search={{ note.title | striptags | urlencode }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ note.title | safe }}</h6>
+                                <small>{{ note.updated_at.strftime('%d/%m/%Y') if note.updated_at else '' }}</small>
+                            </div>
+                            <p class="mb-1 text-muted dashboard-note-preview" style="line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 60px; overflow: hidden;">
+                                {{ note.content[:100] | safe }}{% if note.content|length > 100 %}...{% endif %}
+                            </p>
+                            <small><span class="badge bg-secondary">{{ note.category }}</span></small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">Chưa có ghi chú nào</p>
+                    <div class="text-center">
+                        <a href="{{ url_for('new_note') }}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Tạo ghi chú mới
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Tài liệu gần đây</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_docs %}
+                    <div class="list-group list-group-flush">
+                        {% for doc in recent_docs %}
+                        <a href="{{ url_for('docs') }}?search={{ doc.title | striptags | urlencode }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ doc.title | safe }}</h6>
+                                <small>{{ doc.updated_at.strftime('%d/%m/%Y') if doc.updated_at else '' }}</small>
+                            </div>
+                            <p class="mb-1 text-muted dashboard-doc-preview" style="line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 60px; overflow: hidden;">
+                                {{ doc.content[:100] | safe }}{% if doc.content|length > 100 %}...{% endif %}
+                            </p>
+                            <small><span class="badge bg-primary">{{ doc.category }}</span></small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">Chưa có tài liệu nào</p>
+                    <div class="text-center">
+                        <a href="{{ url_for('new_doc') }}" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Tạo tài liệu mới
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Thao tác nhanh</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if current_user.role != 'viewer' %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('new_note') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-plus-circle"></i> Ghi chú mới
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('new_doc') }}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-plus-circle"></i> Tài liệu mới
+                        </a>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('search') }}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-search"></i> Tìm kiếm
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('notes') }}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-list"></i> Xem tất cả
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

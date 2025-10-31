@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch sử Chỉnh sửa - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-clock-history"></i> Lịch sử Chỉnh sửa</h1>
+        <p class="text-muted">Xem lại các thay đổi đã được thực hiện trong hệ thống</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-list"></i> Ghi nhận thay đổi</h5>
+    </div>
+    <div class="card-body">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Loại</th>
+                        <th>ID</th>
+                        <th>Hành động</th>
+                        <th>Người thực hiện</th>
+                        <th>Thay đổi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>
+                            {% if log.get('created_at') and log.created_at %}
+                                {{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.get('item_type') == 'note' %}
+                            <span class="badge bg-info">Ghi chú</span>
+                            {% elif log.get('item_type') == 'doc' %}
+                            <span class="badge bg-success">Tài liệu</span>
+                            {% elif log.get('item_type') == 'user' %}
+                            <span class="badge bg-warning">Người dùng</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.get('item_type', 'N/A') }}</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ log.get('item_id', 'N/A') }}</strong></td>
+                        <td>
+                            {% if log.get('action') == 'edit' %}
+                            <span class="badge bg-primary">Chỉnh sửa</span>
+                            {% elif log.get('action') == 'create' %}
+                            <span class="badge bg-success">Tạo mới</span>
+                            {% elif log.get('action') == 'delete' %}
+                            <span class="badge bg-danger">Xóa</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.get('action', 'N/A') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.get('username', 'Unknown') }}</td>
+                        <td>
+                            {% if log.get('changes') %}
+                            <button class="btn btn-sm btn-outline-info" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#changes-{{ log.id }}">
+                                <i class="bi bi-eye"></i> Chi tiết
+                            </button>
+                            <div class="collapse mt-2" id="changes-{{ log.id }}">
+                                <div class="card card-body bg-light">
+                                    {% set changes = log.changes %}
+                                    
+                                    {% if changes.get('action') %}
+                                        <strong>{{ changes.action }}</strong>
+                                    {% elif changes.get('title') %}
+                                        {# Xử lý title - có thể là string hoặc dict #}
+                                        {% if changes.title is mapping and changes.title.get('old') and changes.title.get('new') %}
+                                        <div class="mb-2">
+                                            <strong>Tiêu đề:</strong><br>
+                                            <span class="text-danger">- {{ changes.title.old }}</span><br>
+                                            <span class="text-success">+ {{ changes.title.new }}</span>
+                                        </div>
+                                        {% elif changes.title %}
+                                        <div class="mb-2"><strong>Tiêu đề:</strong> {{ changes.title }}</div>
+                                        {% endif %}
+                                        
+                                        {# Xử lý content - có thể là string hoặc dict #}
+                                        {% if changes.get('content') %}
+                                            {% if changes.content is mapping and changes.content.get('old') %}
+                                            <div class="mb-2">
+                                                <strong>Nội dung:</strong><br>
+                                                <span class="text-danger">- {{ changes.content.old }}</span><br>
+                                                <span class="text-success">+ {{ changes.content.new }}</span>
+                                            </div>
+                                            {% else %}
+                                            <div class="mb-2"><strong>Nội dung:</strong> {{ changes.content }}</div>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {# Xử lý category - có thể là string hoặc dict #}
+                                        {% if changes.get('category') %}
+                                            {% if changes.category is mapping and changes.category.get('old') %}
+                                            <div class="mb-2">
+                                                <strong>Danh mục:</strong><br>
+                                                <span class="text-danger">- {{ changes.category.old }}</span><br>
+                                                <span class="text-success">+ {{ changes.category.new }}</span>
+                                            </div>
+                                            {% else %}
+                                            <div class="mb-2"><strong>Danh mục:</strong> {{ changes.category }}</div>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {# Các field khác #}
+                                        {% if changes.get('username') %}
+                                        <div class="mb-2"><strong>Người dùng:</strong> {{ changes.username }}</div>
+                                        {% endif %}
+                                        
+                                        {% if changes.get('role') %}
+                                            {% if changes.role is mapping and changes.role.get('old') %}
+                                            <div class="mb-2">
+                                                <strong>Quyền:</strong><br>
+                                                <span class="text-danger">- {{ changes.role.old }}</span><br>
+                                                <span class="text-success">+ {{ changes.role.new }}</span>
+                                            </div>
+                                            {% else %}
+                                            <div class="mb-2"><strong>Quyền:</strong> {{ changes.role }}</div>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {% if changes.get('password') %}
+                                        <div class="mb-2"><strong>Mật khẩu:</strong> {{ changes.password }}</div>
+                                        {% endif %}
+                                        
+                                        {% if changes.get('is_active') %}
+                                            {% if changes.is_active is mapping and changes.is_active.get('old') is not none %}
+                                            <div class="mb-2">
+                                                <strong>Trạng thái:</strong><br>
+                                                <span class="text-danger">- {{ 'Hoạt động' if changes.is_active.old else 'Không hoạt động' }}</span><br>
+                                                <span class="text-success">+ {{ 'Hoạt động' if changes.is_active.new else 'Không hoạt động' }}</span>
+                                            </div>
+                                            {% else %}
+                                            <div class="mb-2"><strong>Trạng thái:</strong> {{ 'Hoạt động' if changes.is_active else 'Không hoạt động' }}</div>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <pre class="mb-0">{{ changes | tojson(indent=2) }}</pre>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> Chưa có ghi nhận thay đổi nào.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

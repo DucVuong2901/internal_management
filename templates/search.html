@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Tìm kiếm - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-search"></i> Tìm kiếm</h1>
+    </div>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('search') }}" id="searchForm">
+            <div class="position-relative">
+                <div class="input-group input-group-lg">
+                    <input type="text" class="form-control" name="q" id="searchInput"
+                           placeholder="Nhập từ khóa để tìm kiếm..." 
+                           value="{{ query }}" autofocus autocomplete="off">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search"></i> Tìm kiếm
+                    </button>
+                </div>
+                <!-- Search Suggestions Dropdown -->
+                <div id="searchSuggestions" class="dropdown-menu position-absolute w-100" style="display: none; max-height: 300px; overflow-y: auto; z-index: 1000;">
+                    <div id="suggestionsList"></div>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="bi bi-clock-history"></i> 
+                <span id="recentSearchesLabel" style="display: none;">Tìm kiếm gần đây:</span>
+            </small>
+        </form>
+    </div>
+</div>
+
+{% if query %}
+<!-- Results -->
+<div class="row">
+    <!-- Notes Results -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-sticky"></i> Ghi chú 
+                    <span class="badge bg-light text-dark">{{ results.notes|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if results.notes %}
+                    <div class="list-group">
+                        {% for note in results.notes %}
+                        <a href="{{ url_for('notes') }}?search={{ note.title | striptags | urlencode }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ note.title | safe }}</h6>
+                                <small>{{ note.category }}</small>
+                            </div>
+                            <p class="mb-1">{{ note.content | striptags | truncate(150) }}...</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Không tìm thấy ghi chú nào</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Documents Results -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i> Tài liệu
+                    <span class="badge bg-light text-dark">{{ results.docs|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if results.docs %}
+                    <div class="list-group">
+                        {% for doc in results.docs %}
+                        <a href="{{ url_for('docs') }}?search={{ doc.title | striptags | urlencode }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ doc.title | safe }}</h6>
+                                <small>{{ doc.category }}</small>
+                            </div>
+                            <p class="mb-1">{{ doc.content | striptags | truncate(150) }}...</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Không tìm thấy tài liệu nào</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i> Nhập từ khóa vào ô tìm kiếm để bắt đầu
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search History Management
+const SEARCH_HISTORY_KEY = 'search_history';
+const MAX_HISTORY_ITEMS = 10;
+
+function getSearchHistory() {
+    try {
+        const history = localStorage.getItem(SEARCH_HISTORY_KEY);
+        return history ? JSON.parse(history) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveSearchHistory(query) {
+    if (!query || query.trim().length === 0) return;
+    
+    query = query.trim();
+    let history = getSearchHistory();
+    
+    // Loại bỏ query nếu đã tồn tại
+    history = history.filter(item => item.toLowerCase() !== query.toLowerCase());
+    
+    // Thêm vào đầu danh sách
+    history.unshift(query);
+    
+    // Giới hạn số lượng
+    history = history.slice(0, MAX_HISTORY_ITEMS);
+    
+    try {
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {
+        console.error('Error saving search history:', e);
+    }
+}
+
+function showSuggestions() {
+    const searchInput = document.getElementById('searchInput');
+    const suggestionsDropdown = document.getElementById('searchSuggestions');
+    const suggestionsList = document.getElementById('suggestionsList');
+    const recentLabel = document.getElementById('recentSearchesLabel');
+    
+    if (!searchInput || !suggestionsDropdown || !suggestionsList) return;
+    
+    const query = searchInput.value.trim().toLowerCase();
+    const history = getSearchHistory();
+    
+    // Lọc gợi ý phù hợp với input hiện tại
+    const filteredSuggestions = history.filter(item => 
+        item.toLowerCase().includes(query)
+    ).slice(0, 5); // Hiển thị tối đa 5 gợi ý
+    
+    suggestionsList.innerHTML = '';
+    
+    if (filteredSuggestions.length > 0) {
+        recentLabel.style.display = 'inline';
+        
+        filteredSuggestions.forEach((suggestion, index) => {
+            const item = document.createElement('a');
+            item.className = 'dropdown-item';
+            item.href = '#';
+            item.innerHTML = `
+                <i class="bi bi-clock-history"></i> 
+                <span>${escapeHtml(suggestion)}</span>
+            `;
+            
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                searchInput.value = suggestion;
+                document.getElementById('searchForm').submit();
+            });
+            
+            suggestionsList.appendChild(item);
+        });
+        
+        suggestionsDropdown.style.display = 'block';
+    } else if (history.length > 0 && query.length === 0) {
+        // Hiển thị tất cả lịch sử nếu ô tìm kiếm trống
+        recentLabel.style.display = 'inline';
+        
+        history.slice(0, 5).forEach((suggestion) => {
+            const item = document.createElement('a');
+            item.className = 'dropdown-item';
+            item.href = '#';
+            item.innerHTML = `
+                <i class="bi bi-clock-history"></i> 
+                <span>${escapeHtml(suggestion)}</span>
+            `;
+            
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                searchInput.value = suggestion;
+                document.getElementById('searchForm').submit();
+            });
+            
+            suggestionsList.appendChild(item);
+        });
+        
+        suggestionsDropdown.style.display = 'block';
+    } else {
+        suggestionsDropdown.style.display = 'none';
+        if (query.length === 0) {
+            recentLabel.style.display = 'none';
+        }
+    }
+}
+
+function hideSuggestions() {
+    const suggestionsDropdown = document.getElementById('searchSuggestions');
+    if (suggestionsDropdown) {
+        setTimeout(() => {
+            suggestionsDropdown.style.display = 'none';
+        }, 200); // Delay để cho phép click vào suggestion
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const searchForm = document.getElementById('searchForm');
+    const suggestionsDropdown = document.getElementById('searchSuggestions');
+    
+    if (!searchInput || !searchForm) return;
+    
+    // Lưu query hiện tại vào lịch sử nếu có (khi reload trang với query trong URL)
+    const currentQuery = searchInput.value.trim();
+    if (currentQuery.length > 0) {
+        saveSearchHistory(currentQuery);
+    }
+    
+    // Lưu lịch sử khi submit form
+    searchForm.addEventListener('submit', function(e) {
+        const query = searchInput.value.trim();
+        if (query.length > 0) {
+            saveSearchHistory(query);
+        }
+    });
+    
+    // Hiển thị gợi ý khi focus hoặc nhập
+    searchInput.addEventListener('focus', showSuggestions);
+    searchInput.addEventListener('input', showSuggestions);
+    
+    // Ẩn gợi ý khi click ra ngoài
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !suggestionsDropdown.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+    
+    // Xử lý phím tắt
+    searchInput.addEventListener('keydown', function(e) {
+        const suggestions = suggestionsDropdown.querySelectorAll('.dropdown-item');
+        const activeSuggestion = suggestionsDropdown.querySelector('.dropdown-item.active');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (activeSuggestion) {
+                const next = activeSuggestion.nextElementSibling;
+                activeSuggestion.classList.remove('active');
+                if (next) next.classList.add('active');
+                else if (suggestions.length > 0) suggestions[0].classList.add('active');
+            } else if (suggestions.length > 0) {
+                suggestions[0].classList.add('active');
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (activeSuggestion) {
+                const prev = activeSuggestion.previousElementSibling;
+                activeSuggestion.classList.remove('active');
+                if (prev) prev.classList.add('active');
+                else searchInput.focus();
+            }
+        } else if (e.key === 'Enter' && activeSuggestion) {
+            e.preventDefault();
+            activeSuggestion.click();
+        }
+    });
+});
+</script>
+{% endblock %}
+
