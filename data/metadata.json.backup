@@ -1,0 +1,104 @@
+{
+  "notes": [
+    {
+      "id": 2,
+      "title": "Password",
+      "filename": "2.txt",
+      "category": "password",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 4,
+      "created_at": "2025-10-30T15:01:13.113590",
+      "updated_at": "2025-10-30T15:01:13.113595"
+    },
+    {
+      "id": 3,
+      "title": "key office 2003",
+      "filename": "3.txt",
+      "category": "keyapp",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-30T15:02:50.976768",
+      "updated_at": "2025-10-30T15:02:50.976773"
+    },
+    {
+      "id": 4,
+      "title": "Microsoft Teams",
+      "filename": "4.txt",
+      "category": "error",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 1,
+      "created_at": "2025-10-30T15:04:16.936418",
+      "updated_at": "2025-10-30T15:04:16.936423"
+    },
+    {
+      "id": 5,
+      "title": "Printer",
+      "filename": "5.txt",
+      "category": "printer",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-30T15:05:19.724408",
+      "updated_at": "2025-10-30T15:05:19.724412"
+    },
+    {
+      "id": 6,
+      "title": "Active Window",
+      "filename": "6.txt",
+      "category": "windows",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-30T15:07:18.386761",
+      "updated_at": "2025-10-30T15:07:18.386766"
+    },
+    {
+      "id": 8,
+      "title": "Letstalk",
+      "filename": "8.txt",
+      "category": "app",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 3,
+      "created_at": "2025-10-30T15:09:30.187440",
+      "updated_at": "2025-10-31T06:38:37.372995"
+    },
+    {
+      "id": 9,
+      "title": "Rustdesk",
+      "filename": "9.txt",
+      "category": "app",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 5,
+      "created_at": "2025-10-30T15:10:47.540204",
+      "updated_at": "2025-10-30T15:10:47.540209"
+    },
+    {
+      "id": 11,
+      "title": "Misa",
+      "filename": "11.txt",
+      "category": "app",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 1,
+      "created_at": "2025-10-30T15:16:08.112822",
+      "updated_at": "2025-10-30T15:16:08.112828"
+    }
+  ],
+  "docs": [
+    {
+      "id": 1,
+      "title": "Hướng dẫn sử dụng",
+      "filename": "1.txt",
+      "category": "hướng dẫn",
+      "user_id": null,
+      "attachments": [],
+      "created_at": "2025-10-30T15:19:26.016250",
+      "updated_at": "2025-10-30T15:19:26.016268"
+    }
+  ]
+}
