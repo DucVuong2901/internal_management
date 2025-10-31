@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory, session, send_file
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from functools import wraps
@@ -6,6 +6,9 @@ from datetime import datetime
 import json
 import os
 import re
+import zipfile
+import shutil
+import tempfile
 
 # Import custom storage modules
 from csv_storage import CSVUserStorage, User
@@ -969,6 +972,313 @@ def edit_logs():
     logs = logs[:100]
     
     return render_template('edit_logs.html', logs=logs)
+
+# Export/Import Data Routes (Admin only)
+@app.route('/admin/export-import')
+@admin_required
+def export_import():
+    """Trang quản lý export/import dữ liệu"""
+    return render_template('export_import.html')
+
+@app.route('/admin/export', methods=['POST'])
+@admin_required
+def export_data():
+    """Export toàn bộ dữ liệu ra file ZIP"""
+    try:
+        # Tạo file ZIP tạm
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f'backup_{timestamp}.zip'
+        temp_dir = tempfile.mkdtemp()
+        zip_path = os.path.join(temp_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 1. Export users.csv
+            if os.path.exists(user_storage.csv_file):
+                zipf.write(user_storage.csv_file, 'users.csv')
+            
+            # 2. Export metadata.json (chứa notes và docs metadata)
+            if os.path.exists(file_storage.metadata_file):
+                zipf.write(file_storage.metadata_file, 'metadata.json')
+            
+            # 3. Export categories.json
+            if os.path.exists(categories_file):
+                zipf.write(categories_file, 'categories.json')
+            
+            # 4. Export edit_logs.json
+            if os.path.exists(edit_logs_file):
+                zipf.write(edit_logs_file, 'edit_logs.json')
+            
+            # 5. Export thư mục notes (tất cả file .txt)
+            if os.path.exists(file_storage.notes_dir):
+                for root, dirs, files in os.walk(file_storage.notes_dir):
+                    for file in files:
+                        if file.endswith('.txt'):
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.join('notes', file)
+                            zipf.write(file_path, arcname)
+            
+            # 6. Export thư mục docs (tất cả file .txt)
+            if os.path.exists(file_storage.docs_dir):
+                for root, dirs, files in os.walk(file_storage.docs_dir):
+                    for file in files:
+                        if file.endswith('.txt'):
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.join('docs', file)
+                            zipf.write(file_path, arcname)
+            
+            # 7. Export attachments từ notes
+            if os.path.exists(file_storage.notes_uploads_dir):
+                for root, dirs, files in os.walk(file_storage.notes_uploads_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.join('uploads', 'notes', file)
+                        zipf.write(file_path, arcname)
+            
+            # 8. Export attachments từ docs
+            if os.path.exists(file_storage.docs_uploads_dir):
+                for root, dirs, files in os.walk(file_storage.docs_uploads_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.join('uploads', 'docs', file)
+                        zipf.write(file_path, arcname)
+        
+        # Log export action
+        save_edit_log({
+            'item_type': 'system',
+            'item_id': 0,
+            'action': 'export',
+            'user_id': current_user.id,
+            'changes': json.dumps({
+                'filename': zip_filename,
+                'action': 'Xuất dữ liệu hệ thống'
+            })
+        })
+        
+        # Gửi file về client
+        return send_file(
+            zip_path,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=zip_filename
+        )
+    
+    except Exception as e:
+        flash(f'Lỗi khi export dữ liệu: {str(e)}', 'danger')
+        return redirect(url_for('export_import'))
+
+@app.route('/admin/import', methods=['POST'])
+@admin_required
+def import_data():
+    """Import dữ liệu từ file ZIP"""
+    if 'import_file' not in request.files:
+        flash('Vui lòng chọn file để import!', 'danger')
+        return redirect(url_for('export_import'))
+    
+    file = request.files['import_file']
+    
+    # Kiểm tra file có tồn tại và là FileStorage object
+    if not file or not hasattr(file, 'filename'):
+        flash('File upload không hợp lệ!', 'danger')
+        return redirect(url_for('export_import'))
+    
+    # Kiểm tra filename có tồn tại và không rỗng
+    original_filename = getattr(file, 'filename', None)
+    if not original_filename or original_filename == '' or original_filename == 'None':
+        flash('Vui lòng chọn file để import!', 'danger')
+        return redirect(url_for('export_import'))
+    
+    if not original_filename.endswith('.zip'):
+        flash('File phải có định dạng .zip!', 'danger')
+        return redirect(url_for('export_import'))
+    
+    # Kiểm tra xác nhận import
+    import_mode = request.form.get('import_mode', 'merge')  # merge hoặc replace
+    
+    try:
+        # Lưu file tạm
+        temp_dir = tempfile.mkdtemp()
+        temp_zip_path = os.path.join(temp_dir, secure_filename(original_filename))
+        file.save(temp_zip_path)
+        
+        # Giải nén ZIP
+        extract_dir = os.path.join(temp_dir, 'extract')
+        os.makedirs(extract_dir, exist_ok=True)
+        
+        with zipfile.ZipFile(temp_zip_path, 'r') as zipf:
+            zipf.extractall(extract_dir)
+        
+        import_count = {
+            'users': 0,
+            'notes': 0,
+            'docs': 0,
+            'attachments': 0
+        }
+        
+        # 1. Import users.csv (chỉ trong mode replace vì merge users phức tạp và nguy hiểm)
+        users_file = os.path.join(extract_dir, 'users.csv')
+        if os.path.exists(users_file):
+            if import_mode == 'replace':
+                # Backup file cũ
+                if os.path.exists(user_storage.csv_file):
+                    backup_file = user_storage.csv_file + '.backup'
+                    shutil.copy2(user_storage.csv_file, backup_file)
+                # Copy file mới
+                os.makedirs(os.path.dirname(user_storage.csv_file), exist_ok=True)
+                shutil.copy2(users_file, user_storage.csv_file)
+                import_count['users'] = len(user_storage.get_all_users())
+            # Note: Merge mode không import users để tránh xung đột password hash và quyền admin
+        
+        # 2. Import metadata.json
+        metadata_file = os.path.join(extract_dir, 'metadata.json')
+        if os.path.exists(metadata_file):
+            if import_mode == 'replace':
+                # Backup file cũ
+                if os.path.exists(file_storage.metadata_file):
+                    backup_file = file_storage.metadata_file + '.backup'
+                    shutil.copy2(file_storage.metadata_file, backup_file)
+                # Copy file mới
+                os.makedirs(os.path.dirname(file_storage.metadata_file), exist_ok=True)
+                shutil.copy2(metadata_file, file_storage.metadata_file)
+            else:
+                # Merge mode: đọc cả hai và merge
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    imported_metadata = json.load(f)
+                current_metadata = file_storage._load_metadata()
+                
+                # Merge notes
+                imported_note_ids = {n['id'] for n in imported_metadata.get('notes', [])}
+                current_metadata['notes'] = [n for n in current_metadata.get('notes', []) 
+                                           if n['id'] not in imported_note_ids]
+                current_metadata['notes'].extend(imported_metadata.get('notes', []))
+                import_count['notes'] = len(imported_metadata.get('notes', []))
+                
+                # Merge docs
+                imported_doc_ids = {d['id'] for d in imported_metadata.get('docs', [])}
+                current_metadata['docs'] = [d for d in current_metadata.get('docs', []) 
+                                          if d['id'] not in imported_doc_ids]
+                current_metadata['docs'].extend(imported_metadata.get('docs', []))
+                import_count['docs'] = len(imported_metadata.get('docs', []))
+                
+                file_storage._save_metadata(current_metadata)
+        
+        # 3. Import categories.json
+        categories_file_import = os.path.join(extract_dir, 'categories.json')
+        if os.path.exists(categories_file_import):
+            with open(categories_file_import, 'r', encoding='utf-8') as f:
+                imported_categories = json.load(f)
+            if import_mode == 'replace':
+                save_categories(imported_categories)
+            else:
+                # Merge categories
+                current_categories = load_categories()
+                for cat in imported_categories:
+                    if cat not in current_categories:
+                        current_categories.append(cat)
+                save_categories(current_categories)
+        
+        # 4. Import edit_logs.json
+        edit_logs_file_import = os.path.join(extract_dir, 'edit_logs.json')
+        if os.path.exists(edit_logs_file_import):
+            with open(edit_logs_file_import, 'r', encoding='utf-8') as f:
+                imported_logs = json.load(f)
+            if import_mode == 'replace':
+                os.makedirs(os.path.dirname(edit_logs_file), exist_ok=True)
+                shutil.copy2(edit_logs_file_import, edit_logs_file)
+            else:
+                # Merge logs
+                current_logs = load_edit_logs()
+                imported_log_ids = {l.get('id') for l in imported_logs}
+                current_logs = [l for l in current_logs if l.get('id') not in imported_log_ids]
+                current_logs.extend(imported_logs)
+                os.makedirs(os.path.dirname(edit_logs_file), exist_ok=True)
+                with open(edit_logs_file, 'w', encoding='utf-8') as f:
+                    json.dump(current_logs, f, ensure_ascii=False, indent=2)
+        
+        # 5. Import notes files
+        notes_dir_import = os.path.join(extract_dir, 'notes')
+        if os.path.exists(notes_dir_import):
+            if import_mode == 'replace':
+                # Xóa thư mục cũ và copy mới
+                if os.path.exists(file_storage.notes_dir):
+                    shutil.rmtree(file_storage.notes_dir)
+                shutil.copytree(notes_dir_import, file_storage.notes_dir)
+            else:
+                # Merge mode: Copy các file mới, thay thế file cũ nếu cùng ID
+                os.makedirs(file_storage.notes_dir, exist_ok=True)
+                for root, dirs, files in os.walk(notes_dir_import):
+                    for filename in files:
+                        if filename.endswith('.txt'):
+                            src = os.path.join(root, filename)
+                            dst = os.path.join(file_storage.notes_dir, filename)
+                            # Trong merge mode, luôn copy để thay thế file cũ nếu trùng ID
+                            shutil.copy2(src, dst)
+        
+        # 6. Import docs files
+        docs_dir_import = os.path.join(extract_dir, 'docs')
+        if os.path.exists(docs_dir_import):
+            if import_mode == 'replace':
+                # Xóa thư mục cũ và copy mới
+                if os.path.exists(file_storage.docs_dir):
+                    shutil.rmtree(file_storage.docs_dir)
+                shutil.copytree(docs_dir_import, file_storage.docs_dir)
+            else:
+                # Merge mode: Copy các file mới, thay thế file cũ nếu cùng ID
+                os.makedirs(file_storage.docs_dir, exist_ok=True)
+                for root, dirs, files in os.walk(docs_dir_import):
+                    for filename in files:
+                        if filename.endswith('.txt'):
+                            src = os.path.join(root, filename)
+                            dst = os.path.join(file_storage.docs_dir, filename)
+                            # Trong merge mode, luôn copy để thay thế file cũ nếu trùng ID
+                            shutil.copy2(src, dst)
+        
+        # 7. Import attachments từ notes
+        notes_uploads_dir_import = os.path.join(extract_dir, 'uploads', 'notes')
+        if os.path.exists(notes_uploads_dir_import):
+            os.makedirs(file_storage.notes_uploads_dir, exist_ok=True)
+            for root, dirs, files in os.walk(notes_uploads_dir_import):
+                for filename in files:
+                    src = os.path.join(root, filename)
+                    dst = os.path.join(file_storage.notes_uploads_dir, filename)
+                    # Luôn copy để đảm bảo file mới nhất được sử dụng
+                    shutil.copy2(src, dst)
+                    import_count['attachments'] += 1
+        
+        # 8. Import attachments từ docs
+        docs_uploads_dir_import = os.path.join(extract_dir, 'uploads', 'docs')
+        if os.path.exists(docs_uploads_dir_import):
+            os.makedirs(file_storage.docs_uploads_dir, exist_ok=True)
+            for root, dirs, files in os.walk(docs_uploads_dir_import):
+                for filename in files:
+                    src = os.path.join(root, filename)
+                    dst = os.path.join(file_storage.docs_uploads_dir, filename)
+                    # Luôn copy để đảm bảo file mới nhất được sử dụng
+                    shutil.copy2(src, dst)
+                    import_count['attachments'] += 1
+        
+        # Dọn dẹp file tạm
+        shutil.rmtree(temp_dir)
+        
+        # Log import action
+        save_edit_log({
+            'item_type': 'system',
+            'item_id': 0,
+            'action': 'import',
+            'user_id': current_user.id,
+            'changes': json.dumps({
+                'filename': original_filename,
+                'mode': import_mode,
+                'imported': import_count,
+                'action': 'Nhập dữ liệu hệ thống'
+            })
+        })
+        
+        flash(f'✓ Import thành công! Đã nhập {import_count["notes"]} ghi chú, {import_count["docs"]} tài liệu, {import_count["attachments"]} file đính kèm.', 'success')
+        return redirect(url_for('export_import'))
+    
+    except Exception as e:
+        flash(f'Lỗi khi import dữ liệu: {str(e)}', 'danger')
+        return redirect(url_for('export_import'))
 
 if __name__ == '__main__':
     # Tạo admin mặc định nếu chưa có

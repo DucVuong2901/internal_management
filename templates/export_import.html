@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Export/Import Dữ liệu - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1><i class="bi bi-database"></i> Export/Import Dữ liệu</h1>
+        <p class="text-muted">Xuất và nhập toàn bộ dữ liệu hệ thống (người dùng, ghi chú, tài liệu, file đính kèm) để sao lưu hoặc khôi phục.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Export Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-download"></i> Export Dữ liệu</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Xuất toàn bộ dữ liệu hệ thống ra file ZIP bao gồm:
+                </p>
+                <ul class="list-group list-group-flush mb-3">
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Người dùng (users.csv)</li>
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Ghi chú (notes)</li>
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Tài liệu (docs)</li>
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> File đính kèm (attachments)</li>
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Danh mục (categories)</li>
+                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Lịch sử chỉnh sửa (edit logs)</li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> File backup sẽ có tên định dạng: <code>backup_YYYYMMDD_HHMMSS.zip</code>
+                </div>
+                <form method="post" action="{{ url_for('export_data') }}">
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-download"></i> Xuất Dữ liệu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Import Dữ liệu</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('import_data') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="import_file" class="form-label">Chọn file ZIP backup:</label>
+                        <input type="file" class="form-control" id="import_file" name="import_file" 
+                               accept=".zip" required>
+                        <div class="form-text">Chỉ chấp nhận file .zip đã được export từ hệ thống.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="import_mode" class="form-label">Chế độ import:</label>
+                        <select class="form-select" id="import_mode" name="import_mode" required>
+                            <option value="merge">Merge (Gộp) - Giữ dữ liệu cũ, thêm mới nếu trùng ID sẽ thay thế</option>
+                            <option value="replace">Replace (Thay thế) - Xóa dữ liệu cũ và thay thế hoàn toàn</option>
+                        </select>
+                        <div class="form-text">
+                            <strong>Merge:</strong> Dữ liệu mới sẽ được thêm vào, dữ liệu trùng ID sẽ được thay thế. <em>Lưu ý: Người dùng không được import trong chế độ này.</em><br>
+                            <strong>Replace:</strong> Xóa toàn bộ dữ liệu hiện tại và thay thế bằng dữ liệu từ file backup (nguy hiểm!). Bao gồm cả danh sách người dùng.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Cảnh báo:</strong> 
+                        Import dữ liệu có thể ghi đè dữ liệu hiện tại. Hãy đảm bảo đã export backup trước khi import!
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100" 
+                            onclick="return confirm('Bạn có chắc muốn import dữ liệu? Hành động này có thể ghi đè dữ liệu hiện tại!');">
+                        <i class="bi bi-upload"></i> Import Dữ liệu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hướng dẫn -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-book"></i> Hướng dẫn sử dụng</h5>
+            </div>
+            <div class="card-body">
+                <h6><i class="bi bi-download"></i> Export (Xuất dữ liệu):</h6>
+                <ol>
+                    <li>Nhấn nút "Xuất Dữ liệu" để tạo file backup ZIP chứa toàn bộ dữ liệu hệ thống.</li>
+                    <li>Lưu file backup ở nơi an toàn (ổ cứng ngoài, cloud, ...).</li>
+                    <li>File backup có thể dùng để khôi phục sau khi update ứng dụng hoặc di chuyển server.</li>
+                </ol>
+                
+                <h6 class="mt-3"><i class="bi bi-upload"></i> Import (Nhập dữ liệu):</h6>
+                <ol>
+                    <li>Chọn file backup ZIP đã export trước đó.</li>
+                    <li>Chọn chế độ import:
+                        <ul>
+                            <li><strong>Merge:</strong> Gộp dữ liệu mới vào dữ liệu hiện có (khuyên dùng)</li>
+                            <li><strong>Replace:</strong> Thay thế hoàn toàn dữ liệu hiện có (cẩn thận!)</li>
+                        </ul>
+                    </li>
+                    <li>Nhấn "Import Dữ liệu" và xác nhận.</li>
+                    <li>Hệ thống sẽ tự động khôi phục tất cả dữ liệu từ file backup.</li>
+                </ol>
+                
+                <div class="alert alert-success mt-3">
+                    <i class="bi bi-lightbulb"></i> <strong>Lưu ý:</strong> 
+                    Nên thường xuyên export backup để tránh mất dữ liệu. File backup có thể dùng để:
+                    <ul class="mb-0 mt-2">
+                        <li>Khôi phục sau khi update ứng dụng</li>
+                        <li>Di chuyển dữ liệu sang server mới</li>
+                        <li>Sao lưu định kỳ để bảo vệ dữ liệu</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

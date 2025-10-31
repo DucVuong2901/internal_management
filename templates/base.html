@@ -57,7 +57,7 @@
                     </li>
                     {% if current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('manage_users') or request.endpoint.startswith('new_user') or request.endpoint.startswith('edit_user') or request.endpoint.startswith('manage_categories') or request.endpoint == 'edit_logs' %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('manage_users') or request.endpoint.startswith('new_user') or request.endpoint.startswith('edit_user') or request.endpoint.startswith('manage_categories') or request.endpoint == 'edit_logs' or request.endpoint == 'export_import' %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-shield-check"></i> Quản trị
                         </a>
                         <ul class="dropdown-menu">
@@ -69,6 +69,10 @@
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('edit_logs') }}">
                                 <i class="bi bi-clock-history"></i> Lịch sử chỉnh sửa
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_import') }}">
+                                <i class="bi bi-database"></i> Export/Import dữ liệu
                             </a></li>
                         </ul>
                     </li>
