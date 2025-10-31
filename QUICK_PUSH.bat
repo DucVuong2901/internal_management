@@ -59,11 +59,22 @@ echo.
 
 REM Commit
 echo Dang commit...
-git commit -m "Initial commit: He thong Quan ly Noi bo - Support Windows and Linux" 2>nul
+echo.
+echo Nhap message cho commit (Enter de dung message mac dinh):
+set /p COMMIT_MSG="Commit message: "
+if "%COMMIT_MSG%"=="" (
+    set COMMIT_MSG=Update: Add export/import data feature and bug fixes
+)
+git commit -m "%COMMIT_MSG%" 2>nul
 if errorlevel 1 (
-    echo [WARNING] Co the da co commit roi
+    echo [WARNING] Co the da co commit roi hoac khong co thay doi
+    echo Ban co muon tao commit moi khong? (Y/N)
+    set /p CREATE_COMMIT="> "
+    if /i "%CREATE_COMMIT%"=="Y" (
+        git commit -m "%COMMIT_MSG%" --allow-empty
+    )
 ) else (
-    echo [OK] Da commit
+    echo [OK] Da commit: %COMMIT_MSG%
 )
 echo.
 
