@@ -1177,7 +1177,9 @@ def import_data():
                 # Copy file mới
                 os.makedirs(os.path.dirname(user_storage.csv_file), exist_ok=True)
                 shutil.copy2(users_file, user_storage.csv_file)
+                # Đếm số users đã import
                 import_count['users'] = len(user_storage.get_all_users())
+                print(f"DEBUG: Imported {import_count['users']} users from {users_file}")
             # Note: Merge mode không import users để tránh xung đột password hash và quyền admin
         
         # 2. Import metadata.json
@@ -1325,10 +1327,27 @@ def import_data():
             })
         })
         
-        flash(f'✓ Import thành công! Đã nhập {import_count["notes"]} ghi chú, {import_count["docs"]} tài liệu, {import_count["attachments"]} file đính kèm.', 'success')
+        # Tạo message chi tiết
+        msg_parts = []
+        if import_count["users"] > 0:
+            msg_parts.append(f'{import_count["users"]} người dùng')
+        if import_count["notes"] > 0:
+            msg_parts.append(f'{import_count["notes"]} ghi chú')
+        if import_count["docs"] > 0:
+            msg_parts.append(f'{import_count["docs"]} tài liệu')
+        if import_count["attachments"] > 0:
+            msg_parts.append(f'{import_count["attachments"]} file đính kèm')
+        
+        if msg_parts:
+            flash(f'✓ Import thành công! Đã nhập: {", ".join(msg_parts)}.', 'success')
+        else:
+            flash('✓ Import hoàn tất!', 'success')
         return redirect(url_for('export_import'))
     
     except Exception as e:
+        import traceback
+        print(f"DEBUG: Import error: {str(e)}")
+        traceback.print_exc()
         flash(f'Lỗi khi import dữ liệu: {str(e)}', 'danger')
         return redirect(url_for('export_import'))
 
