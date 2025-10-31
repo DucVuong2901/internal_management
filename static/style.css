@@ -516,27 +516,6 @@ footer {
 .custom-colored-note .dropdown-item { color: #212529 !important; }
 .custom-colored-note .dropdown-item:hover { background: #f1f3f5 !important; }
 
-/* Positioning and style for compact square dark/light toggle */
-#darkModeToggle {
-    position: fixed;
-    bottom: 12px;
-    right: 12px;
-    top: auto;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    z-index: 12000;
-}
-#darkModeToggle i { font-size: 1.1rem; }
-[data-theme="dark"] #darkModeToggle { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); }
-[data-theme="light"] #darkModeToggle, :root #darkModeToggle { background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); }
-body[data-authenticated="true"] #darkModeToggle { bottom: 12px; right: 12px; top: auto; }
-
 /* Ngăn chớp modal ảnh (Bootsrap modal-no-transition fix) */
 .modal-no-transition.modal.fade {
     transition: none !important;

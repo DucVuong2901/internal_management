@@ -1,121 +1,55 @@
 // Dark Mode Toggle
 function initDarkMode() {
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const darkModeIcon = document.getElementById('darkModeIcon');
+    const darkModeToggleDropdown = document.getElementById('darkModeToggleDropdown');
+    const darkModeIconDropdown = document.getElementById('darkModeIconDropdown');
+    const darkModeTextDropdown = document.getElementById('darkModeTextDropdown');
     const html = document.documentElement;
+    
+    // Helper function to update all icons and text
+    function updateThemeUI(isDark) {
+        if (darkModeIconDropdown) {
+            darkModeIconDropdown.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+        }
+        if (darkModeTextDropdown) {
+            darkModeTextDropdown.textContent = isDark ? 'Chế độ sáng' : 'Chế độ tối';
+        }
+    }
     
     // Load saved theme
     const savedTheme = localStorage.getItem('theme') || 'light';
     if (savedTheme === 'dark') {
         html.setAttribute('data-theme', 'dark');
-        if (darkModeIcon) {
-            darkModeIcon.className = 'bi bi-sun';
-        }
+        updateThemeUI(true);
+        try { reapplyNoteCardColors(); } catch(_) {}
+    } else {
+        updateThemeUI(false);
+    }
+    
+    // Toggle theme function
+    function toggleTheme() {
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeUI(newTheme === 'dark');
+        
+        // Áp dụng lại màu chữ tương phản cho ghi chú
         try { reapplyNoteCardColors(); } catch(_) {}
     }
     
-    // Toggle theme
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', function() {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            
-            if (darkModeIcon) {
-                darkModeIcon.className = newTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+    // Attach event listener to dropdown toggle
+    if (darkModeToggleDropdown) {
+        darkModeToggleDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleTheme();
+            // Close the dropdown after toggling
+            const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('userDropdown'));
+            if (dropdown) {
+                dropdown.hide();
             }
-            // Áp dụng lại màu chữ tương phản cho ghi chú
-            try { reapplyNoteCardColors(); } catch(_) {}
         });
     }
-}
-
-// Toggle draggable + persist position
-function initDraggableToggle() {
-    const btn = document.getElementById('darkModeToggle');
-    if (!btn) return;
-
-    // Restore position and decide lock state
-    const saved = localStorage.getItem('darkTogglePos');
-    const savedLock = localStorage.getItem('darkToggleLocked');
-    let hasSavedPos = false;
-    if (saved) {
-        try {
-            const pos = JSON.parse(saved);
-            if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-                btn.style.left = pos.left + 'px';
-                btn.style.top = pos.top + 'px';
-                btn.style.right = 'auto';
-                btn.style.bottom = 'auto';
-                hasSavedPos = true;
-            }
-        } catch(_) {}
-    }
-
-    // If already locked (or has saved pos), keep it fixed and do not add drag handlers
-    if (savedLock === 'true' || hasSavedPos) {
-        // ensure lock flag is set so future loads keep it fixed
-        localStorage.setItem('darkToggleLocked', 'true');
-        return;
-    }
-
-    // Otherwise allow one-time drag then lock on drop
-    let isDragging = false;
-    let offsetX = 0, offsetY = 0;
-
-    function onPointerDown(e){
-        isDragging = true;
-        const rect = btn.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        offsetX = clientX - rect.left;
-        offsetY = clientY - rect.top;
-        const currentRect = btn.getBoundingClientRect();
-        btn.style.left = currentRect.left + 'px';
-        btn.style.top = currentRect.top + 'px';
-        btn.style.right = 'auto';
-        btn.style.bottom = 'auto';
-        document.addEventListener('mousemove', onPointerMove);
-        document.addEventListener('mouseup', onPointerUp);
-        document.addEventListener('touchmove', onPointerMove, {passive:false});
-        document.addEventListener('touchend', onPointerUp);
-        if (e.cancelable) e.preventDefault();
-        e.stopPropagation();
-    }
-
-    function onPointerMove(e){
-        if (!isDragging) return;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        let x = clientX - offsetX;
-        let y = clientY - offsetY;
-        const m = 6;
-        x = Math.min(vw - btn.offsetWidth - m, Math.max(m, x));
-        y = Math.min(vh - btn.offsetHeight - m, Math.max(m, y));
-        btn.style.left = x + 'px';
-        btn.style.top = y + 'px';
-        if (e.cancelable) e.preventDefault();
-    }
-
-    function onPointerUp(){
-        if (!isDragging) return;
-        isDragging = false;
-        document.removeEventListener('mousemove', onPointerMove);
-        document.removeEventListener('mouseup', onPointerUp);
-        document.removeEventListener('touchmove', onPointerMove);
-        document.removeEventListener('touchend', onPointerUp);
-        const left = parseInt(btn.style.left || '0', 10);
-        const top = parseInt(btn.style.top || '0', 10);
-        localStorage.setItem('darkTogglePos', JSON.stringify({left, top}));
-        localStorage.setItem('darkToggleLocked', 'true');
-    }
-
-    btn.addEventListener('mousedown', onPointerDown);
-    btn.addEventListener('touchstart', onPointerDown, {passive:false});
 }
 
 // KHÔNG check session để tránh logout khi chuyển tab
@@ -130,7 +64,6 @@ function checkSessionOnLoad() {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize dark mode
     initDarkMode();
-    initDraggableToggle();
     try { reapplyNoteCardColors(); } catch(_) {}
     
     // Kiểm tra session khi load trang
