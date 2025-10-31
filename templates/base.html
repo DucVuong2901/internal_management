@@ -103,6 +103,11 @@
                                 <i class="bi bi-moon-stars" id="darkModeIconDropdown"></i> <span id="darkModeTextDropdown">Chế độ tối</span>
                             </button>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('change_password') }}">
+                                <i class="bi bi-key"></i> Đổi mật khẩu
+                            </a>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                             <i class="bi bi-box-arrow-right"></i> Đăng xuất

@@ -187,6 +187,58 @@ def logout():
     response.set_cookie('session', '', expires=0, max_age=0)
     return response
 
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Trang đổi mật khẩu cho user"""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        
+        # Validation
+        if not current_password or not new_password or not confirm_password:
+            flash('Vui lòng điền đầy đủ thông tin!', 'danger')
+            return render_template('change_password.html')
+        
+        if new_password != confirm_password:
+            flash('Mật khẩu mới và xác nhận không khớp!', 'danger')
+            return render_template('change_password.html')
+        
+        if len(new_password) < 6:
+            flash('Mật khẩu mới phải có ít nhất 6 ký tự!', 'danger')
+            return render_template('change_password.html')
+        
+        if new_password == current_password:
+            flash('Mật khẩu mới phải khác mật khẩu hiện tại!', 'danger')
+            return render_template('change_password.html')
+        
+        # Verify current password
+        if not current_user.check_password(current_password):
+            flash('Mật khẩu hiện tại không đúng!', 'danger')
+            return render_template('change_password.html')
+        
+        # Update password
+        success = user_storage.update_user(current_user.id, password=new_password)
+        
+        if success:
+            # Log password change
+            save_edit_log({
+                'item_type': 'user',
+                'item_id': current_user.id,
+                'action': 'change_password',
+                'user_id': current_user.id,
+                'changes': json.dumps({
+                    'action': f'User {current_user.username} đã đổi mật khẩu'
+                })
+            })
+            flash('✓ Đã đổi mật khẩu thành công!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Có lỗi xảy ra khi đổi mật khẩu!', 'danger')
+    
+    return render_template('change_password.html')
+
 @app.before_request
 def check_session_validity():
     """Kiểm tra session còn hiệu lực không - force logout nếu cần"""
