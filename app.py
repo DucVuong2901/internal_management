@@ -1177,9 +1177,13 @@ def import_data():
                 # Copy file mới
                 os.makedirs(os.path.dirname(user_storage.csv_file), exist_ok=True)
                 shutil.copy2(users_file, user_storage.csv_file)
-                # Đếm số users đã import
-                import_count['users'] = len(user_storage.get_all_users())
-                print(f"DEBUG: Imported {import_count['users']} users from {users_file}")
+                # Verify file was copied successfully
+                if os.path.exists(user_storage.csv_file):
+                    # Đếm số users đã import
+                    import_count['users'] = len(user_storage.get_all_users())
+                    print(f"DEBUG: Imported {import_count['users']} users from {users_file}")
+                else:
+                    print(f"DEBUG: Failed to copy users file to {user_storage.csv_file}")
             # Note: Merge mode không import users để tránh xung đột password hash và quyền admin
         
         # 2. Import metadata.json
