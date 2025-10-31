@@ -7,7 +7,7 @@
       "category": "password",
       "user_id": 1,
       "attachments": [],
-      "view_count": 4,
+      "view_count": 5,
       "created_at": "2025-10-30T15:01:13.113590",
       "updated_at": "2025-10-30T15:01:13.113595"
     },
@@ -56,6 +56,17 @@
       "updated_at": "2025-10-30T15:07:18.386766"
     },
     {
+      "id": 7,
+      "title": "Outlook",
+      "filename": "7.txt",
+      "category": "mail",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 6,
+      "created_at": "2025-10-30T15:08:00.401283",
+      "updated_at": "2025-10-31T06:23:58.589315"
+    },
+    {
       "id": 8,
       "title": "Letstalk",
       "filename": "8.txt",
@@ -76,6 +87,23 @@
       "view_count": 5,
       "created_at": "2025-10-30T15:10:47.540204",
       "updated_at": "2025-10-30T15:10:47.540209"
+    },
+    {
+      "id": 10,
+      "title": "Biostar",
+      "filename": "10.txt",
+      "category": "app",
+      "user_id": 1,
+      "attachments": [
+        {
+          "filename": "10_c6c5b8bb.jpg",
+          "original_filename": "59bac51b-0b6a-4703-abdd-02a2fe9642fd.jpg",
+          "uploaded_at": "2025-10-30T15:13:48.030599"
+        }
+      ],
+      "view_count": 41,
+      "created_at": "2025-10-30T15:12:01.691831",
+      "updated_at": "2025-10-30T15:13:48.030605"
     },
     {
       "id": 11,

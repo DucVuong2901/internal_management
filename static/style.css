@@ -172,6 +172,7 @@ main {
     word-wrap: break-word;
     overflow-wrap: break-word;
     white-space: normal;
+    color: var(--text-color);
 }
 
 .note-content-preview .card-text p,
@@ -204,6 +205,79 @@ main {
 .doc-content-full {
     min-height: 200px;
     padding: 1.5rem;
+    color: var(--text-color);
+}
+
+/* Ensure proper color inheritance for all child elements */
+.note-content-full p,
+.doc-content-full p,
+.note-content-full h1,
+.doc-content-full h1,
+.note-content-full h2,
+.doc-content-full h2,
+.note-content-full h3,
+.doc-content-full h3,
+.note-content-full h4,
+.doc-content-full h4,
+.note-content-full h5,
+.doc-content-full h5,
+.note-content-full h6,
+.doc-content-full h6 {
+    color: inherit;
+}
+
+/* Fix for cards inside note content - ensure they adapt to theme */
+.note-content-full .card,
+.doc-content-full .card {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.note-content-full .card .card-body,
+.doc-content-full .card .card-body,
+.note-content-full .card .card-text,
+.doc-content-full .card .card-text {
+    background-color: transparent;
+    color: var(--text-color);
+}
+
+/* Unified text formatting for all content inside notes */
+.note-content-full *,
+.doc-content-full * {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* Links inside note content */
+.note-content-full a,
+.doc-content-full a {
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.note-content-full a:hover,
+.doc-content-full a:hover {
+    opacity: 0.8;
+}
+
+/* Bold and italic inherit */
+.note-content-full strong,
+.doc-content-full strong,
+.note-content-full b,
+.doc-content-full b {
+    font-weight: 700;
+    color: inherit;
+}
+
+.note-content-full em,
+.doc-content-full em,
+.note-content-full i,
+.doc-content-full i {
+    font-style: italic;
+    color: inherit;
 }
 
 /* Dashboard preview styles */
@@ -258,6 +332,7 @@ main {
     padding: 1rem;
     background-color: var(--bg-color);
     border-radius: 0.25rem;
+    color: var(--text-color);
 }
 
 [data-theme="dark"] .note-full-content,

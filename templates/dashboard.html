@@ -51,68 +51,55 @@
     </div>
 </div>
 
-<!-- Recent Items -->
+<!-- Categories List -->
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Ghi chú gần đây</h5>
+                <h5 class="mb-0"><i class="bi bi-tags"></i> Danh mục ghi chú</h5>
             </div>
             <div class="card-body">
-                {% if recent_notes %}
-                    <div class="list-group list-group-flush">
-                        {% for note in recent_notes %}
-                        <a href="{{ url_for('notes') }}?search={{ note.title | striptags | urlencode }}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ note.title | safe }}</h6>
-                                <small>{{ note.updated_at.strftime('%d/%m/%Y') if note.updated_at else '' }}</small>
-                            </div>
-                            <p class="mb-1 text-muted dashboard-note-preview" style="line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 60px; overflow: hidden;">
-                                {{ note.content[:100] | safe }}{% if note.content|length > 100 %}...{% endif %}
-                            </p>
-                            <small><span class="badge bg-secondary">{{ note.category }}</span></small>
-                        </a>
+                {% if categories_with_stats %}
+                    <div class="row g-3">
+                        {% for cat_stats in categories_with_stats %}
+                        <div class="col-md-6 col-lg-4">
+                            <a href="{{ url_for('notes', category=cat_stats.name) }}" class="text-decoration-none">
+                                <div class="card h-100 category-card" 
+                                     style="transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
+                                     onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.15)'"
+                                     onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="mb-0">
+                                                <i class="bi bi-folder"></i> {{ cat_stats.name }}
+                                            </h5>
+                                            <span class="badge bg-primary">{{ cat_stats.count }}</span>
+                                        </div>
+                                        {% if cat_stats.recent_note %}
+                                        <p class="text-muted mb-1 small" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ cat_stats.recent_note.title | striptags }}
+                                        </p>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i> 
+                                            {{ cat_stats.recent_date.strftime('%d/%m/%Y %H:%M') if cat_stats.recent_date else '' }}
+                                        </small>
+                                        {% else %}
+                                        <p class="text-muted mb-0 small fst-italic">Chưa có ghi chú</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted text-center">Chưa có ghi chú nào</p>
+                    <p class="text-muted text-center">Chưa có danh mục nào</p>
                     <div class="text-center">
-                        <a href="{{ url_for('new_note') }}" class="btn btn-primary">
-                            <i class="bi bi-plus-circle"></i> Tạo ghi chú mới
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('manage_categories') }}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Quản lý danh mục
                         </a>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Tài liệu gần đây</h5>
-            </div>
-            <div class="card-body">
-                {% if recent_docs %}
-                    <div class="list-group list-group-flush">
-                        {% for doc in recent_docs %}
-                        <a href="{{ url_for('docs') }}?search={{ doc.title | striptags | urlencode }}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ doc.title | safe }}</h6>
-                                <small>{{ doc.updated_at.strftime('%d/%m/%Y') if doc.updated_at else '' }}</small>
-                            </div>
-                            <p class="mb-1 text-muted dashboard-doc-preview" style="line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 60px; overflow: hidden;">
-                                {{ doc.content[:100] | safe }}{% if doc.content|length > 100 %}...{% endif %}
-                            </p>
-                            <small><span class="badge bg-primary">{{ doc.category }}</span></small>
-                        </a>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-muted text-center">Chưa có tài liệu nào</p>
-                    <div class="text-center">
-                        <a href="{{ url_for('new_doc') }}" class="btn btn-success">
-                            <i class="bi bi-plus-circle"></i> Tạo tài liệu mới
-                        </a>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>

@@ -294,17 +294,42 @@ def dashboard():
     notes_count = len(all_notes)
     docs_count = len(all_docs)
     
-    # Sắp xếp notes theo view_count (ưu tiên note được xem nhiều nhất), sau đó theo updated_at
-    all_notes_sorted = sorted(all_notes, key=lambda x: (x.view_count if hasattr(x, 'view_count') else 0, x.updated_at), reverse=True)
-    recent_notes = all_notes_sorted[:5]
+    # Lấy tất cả categories và đếm số notes trong mỗi category
+    categories = load_categories()
+    category_stats = {}
     
-    recent_docs = all_docs[:5]
+    for note in all_notes:
+        cat = note.category
+        if cat not in category_stats:
+            category_stats[cat] = {
+                'count': 0,
+                'recent_note': None,
+                'recent_date': None
+            }
+        category_stats[cat]['count'] += 1
+        # Lấy note gần đây nhất trong category
+        if not category_stats[cat]['recent_date'] or note.updated_at > category_stats[cat]['recent_date']:
+            category_stats[cat]['recent_date'] = note.updated_at
+            category_stats[cat]['recent_note'] = note
+    
+    # Chuyển thành list để dễ render
+    categories_with_stats = []
+    for cat in categories:
+        stats = category_stats.get(cat, {'count': 0, 'recent_note': None, 'recent_date': None})
+        categories_with_stats.append({
+            'name': cat,
+            'count': stats['count'],
+            'recent_note': stats['recent_note'],
+            'recent_date': stats['recent_date']
+        })
+    
+    # Sắp xếp theo số lượng giảm dần
+    categories_with_stats.sort(key=lambda x: x['count'], reverse=True)
     
     return render_template('dashboard.html', 
                          notes_count=notes_count,
                          docs_count=docs_count,
-                         recent_notes=recent_notes,
-                         recent_docs=recent_docs)
+                         categories_with_stats=categories_with_stats)
 
 @app.route('/notes/<int:id>/view')
 @login_required

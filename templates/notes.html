@@ -117,20 +117,27 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body d-flex flex-column" style="padding-bottom: 1rem; flex: 1;">
-                    <div class="note-content-preview mb-3" id="note-preview-{{ note.id }}" 
-                         style="overflow: hidden; position: relative; min-height: 100px; flex: 1;">
+                <div class="card-body d-flex flex-column" style="padding: 0.5rem 1rem 1rem 1rem;">
+                    <div class="note-content-preview" id="note-preview-{{ note.id }}" 
+                         style="overflow: hidden; position: relative;">
+                        {% set note_text = (note.content|replace('<br>', '\n')|replace('<br/>', '\n')|replace('<BR>', '\n')|striptags)|trim %}
+                        {% if note_text|length > 0 %}
                         <div class="card-text note-short" id="note-short-{{ note.id }}" 
-                             style="display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; color: #555; overflow: hidden; text-overflow: ellipsis; max-height: 96px;">
-                            {{ note.content[:200] | safe }}{% if note.content|length > 200 %}...{% endif %}
+                             style="display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; max-height: 96px;">
+                            {{ note_text[:200] }}{% if note_text|length > 200 %}...{% endif %}
                         </div>
-                            {% if note.content|length > 200 %}
+                        {% if note_text|length > 200 %}
                         <a class="btn btn-link btn-sm p-0 mt-2 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
                            style="font-size: 0.85em; text-decoration: none;" 
                            onmouseover="this.style.textDecoration='underline'" 
                            onmouseout="this.style.textDecoration='none'">
                             <i class="bi bi-arrow-right"></i> Xem thêm
                         </a>
+                        {% endif %}
+                        {% else %}
+                        <div class="text-muted fst-italic" style="font-size: 0.9em;">
+                            Không có nội dung
+                        </div>
                         {% endif %}
                     </div>
                     {% if note.attachments %}
@@ -182,7 +189,7 @@
 .note-card-wrapper {
     display: inline-block;
     width: 100%;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
     -webkit-column-break-inside: avoid;
     page-break-inside: avoid;
     break-inside: avoid;
@@ -195,7 +202,6 @@
 .note-card-wrapper .card {
     display: block;
     width: 100%;
-    min-height: 280px; /* Chiều cao tối thiểu cố định */
     height: auto;
 }
 
@@ -214,7 +220,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 </style>
 {% endblock %}
@@ -272,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
             hiddenContainer.appendChild(clone);
             const height = clone.offsetHeight;
             hiddenContainer.removeChild(clone);
-            return height + 24; // +24 là gap (1.5rem)
+            return height + 16; // +16 là gap (1rem)
         });
         
         // Xóa container ẩn
