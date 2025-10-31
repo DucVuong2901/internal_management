@@ -22,7 +22,10 @@
                     Xuất toàn bộ dữ liệu hệ thống ra file ZIP bao gồm:
                 </p>
                 <ul class="list-group list-group-flush mb-3">
-                    <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Người dùng (users.csv)</li>
+                    <li class="list-group-item">
+                        <i class="bi bi-check-circle text-success"></i> Người dùng (users.csv)
+                        <br><small class="text-muted ms-3">Bao gồm: username, email, password_hash (đã mã hóa), role, is_active</small>
+                    </li>
                     <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Ghi chú (notes)</li>
                     <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> Tài liệu (docs)</li>
                     <li class="list-group-item"><i class="bi bi-check-circle text-success"></i> File đính kèm (attachments)</li>
@@ -63,8 +66,8 @@
                             <option value="replace">Replace (Thay thế) - Xóa dữ liệu cũ và thay thế hoàn toàn</option>
                         </select>
                         <div class="form-text">
-                            <strong>Merge:</strong> Dữ liệu mới sẽ được thêm vào, dữ liệu trùng ID sẽ được thay thế. <em>Lưu ý: Người dùng không được import trong chế độ này.</em><br>
-                            <strong>Replace:</strong> Xóa toàn bộ dữ liệu hiện tại và thay thế bằng dữ liệu từ file backup (nguy hiểm!). Bao gồm cả danh sách người dùng.
+                            <strong>Merge:</strong> Dữ liệu mới sẽ được thêm vào, dữ liệu trùng ID sẽ được thay thế. <em>Lưu ý: Người dùng KHÔNG được import trong chế độ này (bảo mật).</em><br>
+                            <strong>Replace:</strong> Xóa toàn bộ dữ liệu hiện tại và thay thế bằng dữ liệu từ file backup (nguy hiểm!). <strong>Bao gồm cả danh sách người dùng và mật khẩu đã mã hóa.</strong>
                         </div>
                     </div>
                     
