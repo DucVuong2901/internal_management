@@ -49,10 +49,11 @@ class CSVUserStorage:
         return None
     
     def get_user_by_username(self, username):
-        """Lấy user theo username"""
+        """Lấy user theo username (case-insensitive)"""
         users = self.get_all_users()
+        username_lower = username.lower()
         for user in users:
-            if user['username'] == username:
+            if user['username'].lower() == username_lower:
                 return self._dict_to_user(user)
         return None
     
