@@ -13,16 +13,16 @@
                 </h3>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" autocomplete="off">
                     <div class="mb-3">
                         <label for="username" class="form-label">Tên đăng nhập *</label>
                         <input type="text" class="form-control" id="username" name="username" 
-                               value="{{ user.username if user else '' }}" required>
+                               value="{{ user.username if user else '' }}" required autocomplete="off">
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" name="email" 
-                               value="{{ user.email if user else '' }}">
+                               value="{{ user.email if user else '' }}" autocomplete="off">
                         <small class="form-text text-muted">Email không bắt buộc</small>
                     </div>
                     <div class="mb-3">
@@ -30,7 +30,7 @@
                             Mật khẩu {% if user %}(để trống nếu không đổi){% else %}*{% endif %}
                         </label>
                         <input type="password" class="form-control" id="password" name="password" 
-                               {% if not user %}required{% endif %}>
+                               {% if not user %}required{% endif %} autocomplete="off">
                         <small class="form-text text-muted">
                             {% if user %}
                             Chỉ nhập mật khẩu nếu muốn thay đổi
