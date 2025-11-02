@@ -125,9 +125,7 @@
                         {% if note.attachments %}
                             {# Có file đính kèm: hiển thị ngắn gọn (3 dòng) #}
                             <div class="card-text note-short" id="note-short-{{ note.id }}" 
-                                 style="display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; max-height: 72px;">
-                                {{ note_text[:200] }}{% if note_text|length > 200 %}...{% endif %}
-                            </div>
+                                 style="display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-line; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; max-height: 72px; text-indent: 0; padding-left: 0; margin: 0;">{{ note_text[:200]|trim }}{% if note_text|length > 200 %}...{% endif %}</div>
                             {% if note_text|length > 200 %}
                             <a class="btn btn-link btn-sm p-0 mt-1 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
                                style="font-size: 0.8em; text-decoration: none;" 
@@ -139,9 +137,7 @@
                         {% else %}
                             {# Không có file: hiển thị nhiều hơn (8 dòng) #}
                             <div class="card-text note-short note-full-preview" id="note-short-{{ note.id }}" 
-                                 style="display: -webkit-box; -webkit-line-clamp: 8; line-clamp: 8; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis;">
-                                {{ note_text[:500] }}{% if note_text|length > 500 %}...{% endif %}
-                            </div>
+                                 style="display: -webkit-box; -webkit-line-clamp: 8; line-clamp: 8; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-line; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; text-indent: 0; padding-left: 0; margin: 0;">{{ note_text[:500]|trim }}{% if note_text|length > 500 %}...{% endif %}</div>
                             {% if note_text|length > 500 %}
                             <a class="btn btn-link btn-sm p-0 mt-1 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
                                style="font-size: 0.8em; text-decoration: none;" 
@@ -285,6 +281,14 @@
 .note-card-fixed .note-content-preview .card-text {
     font-size: 0.875rem;
     line-height: 1.5;
+    text-indent: 0;
+    padding-left: 0;
+    margin: 0;
+}
+
+.note-card-fixed .note-content-preview {
+    text-indent: 0;
+    padding-left: 0;
 }
 
 /* Khi không có attachments, preview nội dung mở rộng hơn */
