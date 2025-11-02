@@ -124,8 +124,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // KHÔNG xóa sessionStorage khi unload để tránh logout khi chuyển tab
-    // Session cookie (session-only) sẽ tự động xóa khi đóng trình duyệt
+    // Tự động logout khi đóng tab/window
+    if (document.body.hasAttribute('data-authenticated')) {
+        let isUnloading = false;
+        
+        // Sử dụng beforeunload để logout khi đóng tab
+        window.addEventListener('beforeunload', function(e) {
+            if (!isUnloading) {
+                isUnloading = true;
+                // Sử dụng navigator.sendBeacon để gửi logout request (đáng tin cậy hơn fetch)
+                try {
+                    navigator.sendBeacon('/api/logout');
+                } catch(err) {
+                    // Fallback: sử dụng fetch với keepalive
+                    fetch('/api/logout', {
+                        method: 'POST',
+                        keepalive: true,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }).catch(() => {}); // Ignore errors khi đóng tab
+                }
+            }
+        });
+        
+        // Phát hiện khi pagehide (khi tab đóng)
+        window.addEventListener('pagehide', function(e) {
+            if (e.persisted === false) {
+                // Tab không được cache = có thể đã đóng
+                try {
+                    navigator.sendBeacon('/api/logout');
+                } catch(err) {
+                    fetch('/api/logout', {
+                        method: 'POST',
+                        keepalive: true
+                    }).catch(() => {});
+                }
+            }
+        });
+    }
 });
 
 // Note và Doc content được xem trong tab mới, không cần toggle functions nữa

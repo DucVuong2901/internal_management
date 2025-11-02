@@ -169,9 +169,11 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     
     {% if current_user.is_authenticated %}
-    <!-- Session Management: CHỈ logout khi đóng trình duyệt, KHÔNG logout khi mở tab mới/chuyển tab/nhấn nút -->
-    <!-- Logic: Dựa vào session cookie (session-only, không có expires) để tự động logout khi đóng trình duyệt -->
-    <!-- KHÔNG có JavaScript nào force logout - chỉ dựa vào cookie tự xóa khi đóng trình duyệt -->
+    <!-- Session Management: Tự động logout khi đóng tab/trình duyệt -->
+    <!-- Logic: 
+        1. Session cookie là session-only (không có expires/max-age) → tự xóa khi đóng trình duyệt
+        2. JavaScript phát hiện beforeunload/pagehide → gọi /api/logout để xóa session ngay lập tức
+        3. Kết hợp cả hai phương pháp để đảm bảo logout khi đóng tab -->
     {% endif %}
     
     {% block extra_js %}{% endblock %}

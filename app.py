@@ -30,6 +30,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # QUAN TRỌNG: Cookie chỉ tồn tại trong phiên trình duyệt (KHÔNG persist)
 # Không set SESSION_COOKIE_PERMANENT hoặc set = False để cookie tự xóa khi đóng tab
 app.config['SESSION_COOKIE_NAME'] = 'session'
+# Session cookie sẽ tự động là session-only khi session.permanent = False
 
 # Cấu hình tên miền (có thể set qua environment variable)
 # Ví dụ: set DOMAIN_NAME=mydomain.com hoặc DOMAIN_NAME=192.168.1.100
@@ -905,6 +906,29 @@ def api_search():
         results['docs'] = [{'id': d.id, 'title': d.title, 'type': 'doc'} for d in docs]
     
     return jsonify(results)
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """API endpoint để logout - không redirect, trả về JSON - không cần @login_required vì có thể session đã hết"""
+    try:
+        # Logout user nếu đang đăng nhập
+        if current_user.is_authenticated:
+            logout_user()
+        # Xóa session
+        session.clear()
+        response = jsonify({'status': 'success', 'message': 'Đã đăng xuất'})
+        # Xóa cookie session
+        response.set_cookie('session', '', expires=0, max_age=0)
+        return response
+    except Exception as e:
+        # Ngay cả khi có lỗi, vẫn cố gắng xóa session
+        try:
+            session.clear()
+            response = jsonify({'status': 'success', 'message': 'Đã đăng xuất'})
+            response.set_cookie('session', '', expires=0, max_age=0)
+            return response
+        except:
+            return jsonify({'status': 'success', 'message': 'Đã đăng xuất'}), 200
 
 @app.route('/api/check_session')
 @login_required
