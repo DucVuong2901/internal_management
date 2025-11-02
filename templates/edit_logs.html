@@ -64,8 +64,9 @@
                         <td>{{ log.get('username', 'Unknown') }}</td>
                         <td>
                             {% if log.get('changes') %}
-                            <button class="btn btn-sm btn-outline-info" type="button" 
-                                    data-bs-toggle="collapse" data-bs-target="#changes-{{ log.id }}">
+                            <button class="btn btn-sm btn-outline-info show-changes-btn" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#changes-{{ log.id }}"
+                                    data-log-id="{{ log.id }}">
                                 <i class="bi bi-eye"></i> Chi tiết
                             </button>
                             <div class="collapse mt-2" id="changes-{{ log.id }}">
@@ -77,16 +78,18 @@
                                     {% elif changes.get('title') %}
                                         {# Xử lý title - có thể là string hoặc dict #}
                                         {% if changes.title is mapping and changes.title.get('old') and changes.title.get('new') %}
-                                        <div class="mb-3">
+                                        <div class="mb-3 title-diff-container">
                                             <strong>Tiêu đề:</strong>
                                             <div class="mt-2">
                                                 <div class="change-item-old mb-2 p-2 rounded" style="background-color: #fee; border-left: 3px solid #dc3545;">
                                                     <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
-                                                    <div class="change-content-old">{{ changes.title.old | striptags | trim }}</div>
+                                                    <div class="change-content-old diff-old-title" 
+                                                         data-old-text="{{ changes.title.old | striptags | trim | e }}">{{ changes.title.old | striptags | trim }}</div>
                                                 </div>
                                                 <div class="change-item-new p-2 rounded" style="background-color: #efe; border-left: 3px solid #28a745;">
                                                     <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
-                                                    <div class="change-content-new">{{ changes.title.new | striptags | trim }}</div>
+                                                    <div class="change-content-new diff-new-title"
+                                                         data-new-text="{{ changes.title.new | striptags | trim | e }}">{{ changes.title.new | striptags | trim }}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -101,18 +104,22 @@
                                         {# Xử lý content - có thể là string hoặc dict #}
                                         {% if changes.get('content') %}
                                             {% if changes.content is mapping and changes.content.get('old') %}
-                                            <div class="mb-3">
+                                            <div class="mb-3 content-diff-container" data-log-id="{{ log.id }}">
                                                 <strong>Nội dung:</strong>
                                                 <div class="mt-2">
                                                     <div class="change-item-old mb-2 p-2 rounded" style="background-color: #fee; border-left: 3px solid #dc3545;">
                                                         <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
-                                                        <div class="change-content-old" style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">
+                                                        <div class="change-content-old diff-old" 
+                                                             data-old-text="{{ changes.content.old | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim | e }}"
+                                                             style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto; line-height: 1.8;">
                                                             {{ changes.content.old | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim }}
                                                         </div>
                                                     </div>
                                                     <div class="change-item-new p-2 rounded" style="background-color: #efe; border-left: 3px solid #28a745;">
                                                         <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
-                                                        <div class="change-content-new" style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">
+                                                        <div class="change-content-new diff-new"
+                                                             data-new-text="{{ changes.content.new | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim | e }}"
+                                                             style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto; line-height: 1.8;">
                                                             {{ changes.content.new | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim }}
                                                         </div>
                                                     </div>
@@ -229,5 +236,203 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.diff-highlight-removed {
+    background-color: #ffcccc !important;
+    text-decoration: line-through;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.diff-highlight-added {
+    background-color: #ccffcc !important;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.diff-highlight-changed {
+    background-color: #ffff99 !important;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Diff algorithm đơn giản để highlight sự khác biệt
+function createDiff(oldText, newText) {
+    // Chia thành các từ và ký tự
+    function tokenize(text) {
+        // Giữ lại khoảng trắng và xuống dòng
+        return text.split(/(\s+)/).filter(t => t.length > 0);
+    }
+    
+    const oldTokens = tokenize(oldText);
+    const newTokens = tokenize(newText);
+    
+    // Tìm longest common subsequence
+    const matrix = [];
+    for (let i = 0; i <= oldTokens.length; i++) {
+        matrix[i] = [];
+        for (let j = 0; j <= newTokens.length; j++) {
+            if (i === 0 || j === 0) {
+                matrix[i][j] = 0;
+            } else if (oldTokens[i-1] === newTokens[j-1]) {
+                matrix[i][j] = matrix[i-1][j-1] + 1;
+            } else {
+                matrix[i][j] = Math.max(matrix[i-1][j], matrix[i][j-1]);
+            }
+        }
+    }
+    
+    // Tạo diff
+    let i = oldTokens.length;
+    let j = newTokens.length;
+    const oldResult = [];
+    const newResult = [];
+    
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && oldTokens[i-1] === newTokens[j-1]) {
+            oldResult.unshift({type: 'common', text: oldTokens[i-1]});
+            newResult.unshift({type: 'common', text: newTokens[j-1]});
+            i--;
+            j--;
+        } else if (j > 0 && (i === 0 || matrix[i][j-1] >= matrix[i-1][j])) {
+            newResult.unshift({type: 'added', text: newTokens[j-1]});
+            j--;
+        } else {
+            oldResult.unshift({type: 'removed', text: oldTokens[i-1]});
+            i--;
+        }
+    }
+    
+    return {old: oldResult, new: newResult};
+}
+
+// Render diff với highlight
+function renderDiff(container, oldText, newText) {
+    const diff = createDiff(oldText, newText);
+    
+    const oldDiv = container.querySelector('.diff-old');
+    const newDiv = container.querySelector('.diff-new');
+    
+    if (oldDiv) {
+        oldDiv.innerHTML = diff.old.map(item => {
+            if (item.type === 'removed') {
+                return `<span class="diff-highlight-removed">${escapeHtml(item.text)}</span>`;
+            }
+            return escapeHtml(item.text);
+        }).join('');
+    }
+    
+    if (newDiv) {
+        newDiv.innerHTML = diff.new.map(item => {
+            if (item.type === 'added') {
+                return `<span class="diff-highlight-added">${escapeHtml(item.text)}</span>`;
+            }
+            return escapeHtml(item.text);
+        }).join('');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Xử lý khi click vào button chi tiết
+document.addEventListener('DOMContentLoaded', function() {
+    // Lắng nghe khi collapse được mở
+    document.querySelectorAll('.show-changes-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const logId = this.getAttribute('data-log-id');
+            const targetId = this.getAttribute('data-bs-target');
+            const target = document.querySelector(targetId);
+            
+            if (target) {
+                // Đợi collapse mở xong
+                setTimeout(function() {
+                    // Render diff cho content
+                    const contentContainer = target.querySelector('.content-diff-container');
+                    if (contentContainer) {
+                        const oldDiv = contentContainer.querySelector('.diff-old');
+                        const newDiv = contentContainer.querySelector('.diff-new');
+                        if (oldDiv && newDiv) {
+                            const oldText = oldDiv.getAttribute('data-old-text') || oldDiv.textContent;
+                            const newText = newDiv.getAttribute('data-new-text') || newDiv.textContent;
+                            if (oldText !== newText) {
+                                renderDiff(contentContainer, oldText, newText);
+                                
+                                // Scroll đến phần được highlight đầu tiên
+                                setTimeout(function() {
+                                    const firstHighlight = contentContainer.querySelector('.diff-highlight-removed, .diff-highlight-added');
+                                    if (firstHighlight) {
+                                        firstHighlight.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                        // Highlight flash effect
+                                        firstHighlight.style.transition = 'box-shadow 0.3s';
+                                        firstHighlight.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.8)';
+                                        setTimeout(function() {
+                                            firstHighlight.style.boxShadow = '';
+                                        }, 1000);
+                                    }
+                                }, 100);
+                            }
+                        }
+                    }
+                    
+                    // Render diff cho title
+                    const titleContainer = target.querySelector('.title-diff-container');
+                    if (titleContainer) {
+                        const oldDiv = titleContainer.querySelector('.diff-old-title');
+                        const newDiv = titleContainer.querySelector('.diff-new-title');
+                        if (oldDiv && newDiv) {
+                            const oldText = oldDiv.getAttribute('data-old-text') || oldDiv.textContent;
+                            const newText = newDiv.getAttribute('data-new-text') || newDiv.textContent;
+                            if (oldText !== newText) {
+                                renderDiff(titleContainer, oldText, newText);
+                            }
+                        }
+                    }
+                }, 300);
+            }
+        });
+    });
+    
+    // Xử lý khi collapse đã mở sẵn (trường hợp refresh trang)
+    document.querySelectorAll('.collapse.show').forEach(collapse => {
+        const contentContainer = collapse.querySelector('.content-diff-container');
+        if (contentContainer) {
+            const oldDiv = contentContainer.querySelector('.diff-old');
+            const newDiv = contentContainer.querySelector('.diff-new');
+            if (oldDiv && newDiv) {
+                const oldText = oldDiv.getAttribute('data-old-text') || oldDiv.textContent;
+                const newText = newDiv.getAttribute('data-new-text') || newDiv.textContent;
+                if (oldText !== newText) {
+                    renderDiff(contentContainer, oldText, newText);
+                }
+            }
+        }
+        
+        const titleContainer = collapse.querySelector('.title-diff-container');
+        if (titleContainer) {
+            const oldDiv = titleContainer.querySelector('.diff-old-title');
+            const newDiv = titleContainer.querySelector('.diff-new-title');
+            if (oldDiv && newDiv) {
+                const oldText = oldDiv.getAttribute('data-old-text') || oldDiv.textContent;
+                const newText = newDiv.getAttribute('data-new-text') || newDiv.textContent;
+                if (oldText !== newText) {
+                    renderDiff(titleContainer, oldText, newText);
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
 
