@@ -124,44 +124,163 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Tự động logout khi đóng tab/window
+    // Tự động logout chỉ khi TẤT CẢ tab liên quan đều đóng
     if (document.body.hasAttribute('data-authenticated')) {
+        // Sử dụng BroadcastChannel để giao tiếp giữa các tab
+        const channelName = 'note_app_tabs';
+        const channel = new BroadcastChannel(channelName);
+        const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         let isUnloading = false;
+        let otherTabsActive = false;
         
-        // Sử dụng beforeunload để logout khi đóng tab
-        window.addEventListener('beforeunload', function(e) {
-            if (!isUnloading) {
-                isUnloading = true;
-                // Sử dụng navigator.sendBeacon để gửi logout request (đáng tin cậy hơn fetch)
-                try {
-                    navigator.sendBeacon('/api/logout');
-                } catch(err) {
-                    // Fallback: sử dụng fetch với keepalive
-                    fetch('/api/logout', {
-                        method: 'POST',
-                        keepalive: true,
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }).catch(() => {}); // Ignore errors khi đóng tab
+        // Gửi thông báo tab này đang mở
+        function announceTabOpen() {
+            channel.postMessage({type: 'tab_open', tabId: tabId});
+            // Lưu vào localStorage để các tab mới có thể đếm
+            try {
+                const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
+                tabs[tabId] = Date.now();
+                localStorage.setItem('note_app_active_tabs', JSON.stringify(tabs));
+            } catch(e) {}
+        }
+        
+        // Gửi thông báo tab này đang đóng
+        function announceTabClose() {
+            channel.postMessage({type: 'tab_close', tabId: tabId});
+            try {
+                const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
+                delete tabs[tabId];
+                localStorage.setItem('note_app_active_tabs', JSON.stringify(tabs));
+            } catch(e) {}
+        }
+        
+        // Lắng nghe thông báo từ các tab khác
+        channel.onmessage = function(e) {
+            if (e.data.type === 'tab_open') {
+                if (e.data.tabId !== tabId) {
+                    otherTabsActive = true;
                 }
+            } else if (e.data.type === 'tab_close' || e.data.type === 'tab_closing') {
+                // Một tab khác đã đóng hoặc đang đóng, kiểm tra xem còn tab nào khác không
+                setTimeout(function() {
+                    checkRemainingTabs();
+                }, 100);
+            } else if (e.data.type === 'ping') {
+                // Phản hồi ping từ tab khác
+                channel.postMessage({type: 'pong', tabId: tabId});
+            } else if (e.data.type === 'pong') {
+                if (e.data.tabId !== tabId) {
+                    otherTabsActive = true;
+                }
+            }
+        };
+        
+        // Lắng nghe storage event để phát hiện khi tab khác đóng (fallback)
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'note_app_active_tabs') {
+                // Kiểm tra lại các tab còn lại
+                setTimeout(function() {
+                    checkRemainingTabs();
+                }, 100);
             }
         });
         
-        // Phát hiện khi pagehide (khi tab đóng)
+        // Kiểm tra các tab còn lại từ localStorage
+        function checkRemainingTabs() {
+            try {
+                const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
+                const now = Date.now();
+                const activeTabs = {};
+                
+                // Lọc các tab còn active (trong 30 giây gần đây)
+                for (const [id, timestamp] of Object.entries(tabs)) {
+                    if (id !== tabId && (now - timestamp) < 30000) {
+                        activeTabs[id] = timestamp;
+                    }
+                }
+                
+                localStorage.setItem('note_app_active_tabs', JSON.stringify(activeTabs));
+                
+                // Kiểm tra còn tab nào khác không
+                const hasOtherTabs = Object.keys(activeTabs).length > 0;
+                
+                // Ping các tab khác để chắc chắn
+                channel.postMessage({type: 'ping', tabId: tabId});
+                
+                // Đợi một chút để nhận pong từ các tab khác
+                setTimeout(function() {
+                    // Kiểm tra lại lần cuối
+                    const finalCheck = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
+                    const finalActiveTabs = Object.keys(finalCheck).filter(id => id !== tabId && (Date.now() - finalCheck[id]) < 30000);
+                    
+                    if (finalActiveTabs.length === 0 && !otherTabsActive) {
+                        // Không còn tab nào khác, có thể logout
+                        performLogout();
+                    } else {
+                        // Vẫn còn tab khác, reset flag
+                        otherTabsActive = false;
+                    }
+                }, 200);
+            } catch(e) {}
+        }
+        
+        // Thực hiện logout
+        function performLogout() {
+            if (isUnloading) return;
+            isUnloading = true;
+            
+            try {
+                navigator.sendBeacon('/api/logout');
+            } catch(err) {
+                fetch('/api/logout', {
+                    method: 'POST',
+                    keepalive: true,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).catch(() => {});
+            }
+        }
+        
+        // Gửi heartbeat định kỳ để các tab khác biết tab này còn sống
+        setInterval(function() {
+            if (!isUnloading) {
+                announceTabOpen();
+            }
+        }, 5000);
+        
+        // Khi tab đóng
+        window.addEventListener('beforeunload', function(e) {
+            announceTabClose();
+            // Thông báo cho các tab khác biết tab này đang đóng
+            channel.postMessage({type: 'tab_closing', tabId: tabId});
+        });
+        
+        // Khi tab ẩn (chuyển tab khác)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // Tab hiện lại, gửi thông báo
+                announceTabOpen();
+            }
+        });
+        
+        // Khi pagehide
         window.addEventListener('pagehide', function(e) {
             if (e.persisted === false) {
-                // Tab không được cache = có thể đã đóng
-                try {
-                    navigator.sendBeacon('/api/logout');
-                } catch(err) {
-                    fetch('/api/logout', {
-                        method: 'POST',
-                        keepalive: true
-                    }).catch(() => {});
-                }
+                announceTabClose();
+                checkRemainingTabs();
             }
         });
+        
+        // Khởi tạo: thông báo tab này đang mở
+        announceTabOpen();
+        
+        // Kiểm tra tab khác ngay khi load
+        setTimeout(function() {
+            checkRemainingTabs();
+            // Ping các tab khác
+            channel.postMessage({type: 'ping', tabId: tabId});
+        }, 500);
     }
 });
 
