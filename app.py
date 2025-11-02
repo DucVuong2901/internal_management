@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import re
@@ -87,6 +87,57 @@ def load_edit_logs():
     except:
         return []
 
+def cleanup_old_logs(days=30):
+    """Xóa các log cũ hơn số ngày chỉ định (mặc định 30 ngày)"""
+    logs = load_edit_logs()
+    if not logs:
+        return 0
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    initial_count = len(logs)
+    
+    # Lọc các log còn trong thời hạn
+    filtered_logs = []
+    for log in logs:
+        log_date = None
+        created_at = log.get('created_at')
+        
+        # Xử lý created_at có thể là string hoặc datetime
+        if isinstance(created_at, str):
+            try:
+                # Xử lý ISO format với hoặc không có timezone
+                if 'Z' in created_at:
+                    log_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                else:
+                    log_date = datetime.fromisoformat(created_at)
+                
+                # Chuyển về naive datetime (không có timezone) để so sánh
+                if log_date.tzinfo is not None:
+                    # Chuyển về UTC trước khi remove timezone
+                    log_date = log_date.replace(tzinfo=None)
+            except Exception as e:
+                # Nếu không parse được, giữ lại log để an toàn
+                filtered_logs.append(log)
+                continue
+        elif isinstance(created_at, datetime):
+            log_date = created_at
+            # Chuyển về naive datetime nếu có timezone
+            if log_date.tzinfo is not None:
+                log_date = log_date.replace(tzinfo=None)
+        
+        # Giữ lại log nếu còn trong thời hạn hoặc không xác định được ngày
+        if log_date is None or log_date >= cutoff_date:
+            filtered_logs.append(log)
+    
+    # Chỉ lưu lại nếu có thay đổi
+    deleted_count = initial_count - len(filtered_logs)
+    if deleted_count > 0:
+        os.makedirs(os.path.dirname(edit_logs_file), exist_ok=True)
+        with open(edit_logs_file, 'w', encoding='utf-8') as f:
+            json.dump(filtered_logs, f, ensure_ascii=False, indent=2)
+    
+    return deleted_count
+
 def save_edit_log(log_data):
     """Lưu edit log vào file JSON"""
     logs = load_edit_logs()
@@ -98,6 +149,11 @@ def save_edit_log(log_data):
     os.makedirs(os.path.dirname(edit_logs_file), exist_ok=True)
     with open(edit_logs_file, 'w', encoding='utf-8') as f:
         json.dump(logs, f, ensure_ascii=False, indent=2)
+    
+    # Tự động xóa log cũ hơn 30 ngày sau mỗi lần lưu log mới (để tránh check quá thường xuyên)
+    # Chỉ cleanup mỗi 10 log để không làm chậm hệ thống
+    if log_id % 10 == 0:
+        cleanup_old_logs(30)
 
 def load_categories():
     """Load categories từ file JSON"""
@@ -473,7 +529,7 @@ def edit_note(id):
         # Lưu thay đổi trước khi update
         changes = {
             'title': {'old': old_title, 'new': title},
-            'content': {'old': note.content[:100] + '...' if len(note.content) > 100 else note.content, 'new': content[:100] + '...' if len(content) > 100 else content},
+            'content': {'old': note.content, 'new': content},  # Lưu toàn bộ nội dung, không chỉ preview
             'category': {'old': old_category, 'new': category}
         }
         
@@ -497,13 +553,18 @@ def edit_note(id):
                         if file_storage.add_note_attachment(id, file):
                             pass  # File đã được lưu
             
-            # Tạo log với thông tin chi tiết
+            # Lấy note đã update để lấy updated_at (thời điểm sửa file)
+            updated_note = file_storage.get_note(id)
+            edit_timestamp = updated_note.updated_at if updated_note and updated_note.updated_at else datetime.utcnow()
+            
+            # Tạo log với thông tin chi tiết và thời điểm sửa file
             save_edit_log({
                 'item_type': 'note',
                 'item_id': id,
                 'action': 'edit',
                 'user_id': current_user.id,
-                'changes': json.dumps(changes)
+                'changes': json.dumps(changes),
+                'edit_timestamp': edit_timestamp.isoformat()  # Thời điểm sửa file
             })
             flash('✓ Đã lưu ghi chú thành công!', 'success')
             return redirect(url_for('notes'))
@@ -742,7 +803,7 @@ def edit_doc(id):
         # Lưu thay đổi trước khi update
         changes = {
             'title': {'old': old_title, 'new': title},
-            'content': {'old': doc.content[:100] + '...' if len(doc.content) > 100 else doc.content, 'new': content[:100] + '...' if len(content) > 100 else content},
+            'content': {'old': doc.content, 'new': content},  # Lưu toàn bộ nội dung, không chỉ preview
             'category': {'old': old_category, 'new': category}
         }
         
@@ -766,13 +827,18 @@ def edit_doc(id):
                         if file_storage.add_doc_attachment(id, file):
                             pass  # File đã được lưu
             
-            # Tạo log với thông tin chi tiết
+            # Lấy doc đã update để lấy updated_at (thời điểm sửa file)
+            updated_doc = file_storage.get_doc(id)
+            edit_timestamp = updated_doc.updated_at if updated_doc and updated_doc.updated_at else datetime.utcnow()
+            
+            # Tạo log với thông tin chi tiết và thời điểm sửa file
             save_edit_log({
                 'item_type': 'doc',
                 'item_id': id,
                 'action': 'edit',
                 'user_id': current_user.id,
-                'changes': json.dumps(changes)
+                'changes': json.dumps(changes),
+                'edit_timestamp': edit_timestamp.isoformat()  # Thời điểm sửa file
             })
             flash('Tài liệu đã được cập nhật!', 'success')
             return redirect(url_for('docs'))
@@ -1097,11 +1163,35 @@ def delete_category():
 @app.route('/admin/edit-logs')
 @admin_required
 def edit_logs():
+    # Tự động xóa log cũ hơn 30 ngày khi vào trang edit logs
+    deleted_count = cleanup_old_logs(30)
+    if deleted_count > 0:
+        flash(f'Đã tự động xóa {deleted_count} log cũ hơn 30 ngày.', 'info')
+    
     logs = load_edit_logs()
     
-    # Convert created_at từ string sang datetime và xử lý logs
+    # Convert created_at và edit_timestamp từ string sang datetime và xử lý logs
     for log in logs:
-        # Convert created_at từ ISO string sang datetime object
+        # Ưu tiên dùng edit_timestamp (thời điểm sửa file) nếu có, nếu không thì dùng created_at
+        if log.get('edit_timestamp'):
+            if isinstance(log.get('edit_timestamp'), str):
+                try:
+                    log['display_time'] = datetime.fromisoformat(log['edit_timestamp'])
+                except:
+                    log['display_time'] = None
+            else:
+                log['display_time'] = log.get('edit_timestamp')
+        else:
+            # Fallback về created_at nếu không có edit_timestamp
+            if isinstance(log.get('created_at'), str):
+                try:
+                    log['display_time'] = datetime.fromisoformat(log['created_at'])
+                except:
+                    log['display_time'] = None
+            else:
+                log['display_time'] = log.get('created_at')
+        
+        # Convert created_at từ ISO string sang datetime object (giữ lại để sort)
         if isinstance(log.get('created_at'), str):
             try:
                 log['created_at'] = datetime.fromisoformat(log['created_at'])
