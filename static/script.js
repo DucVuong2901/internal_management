@@ -124,19 +124,48 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Tự động logout chỉ khi TẤT CẢ tab liên quan đều đóng
+    // Tự động logout chỉ khi TẤT CẢ tab liên quan đều đóng (KHÔNG logout khi reload/navigation)
     if (document.body.hasAttribute('data-authenticated')) {
         // Sử dụng BroadcastChannel để giao tiếp giữa các tab
         const channelName = 'note_app_tabs';
         const channel = new BroadcastChannel(channelName);
         const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         let isUnloading = false;
+        let isNavigating = false; // Flag để phân biệt navigation vs đóng tab
         let otherTabsActive = false;
+        let navigationTimer = null;
+        
+        // Đánh dấu đang navigation (không logout)
+        function markNavigation() {
+            isNavigating = true;
+            // Reset flag sau khi navigation hoàn tất
+            if (navigationTimer) clearTimeout(navigationTimer);
+            navigationTimer = setTimeout(function() {
+                isNavigating = false;
+            }, 1000);
+        }
+        
+        // Lắng nghe tất cả link clicks và form submits để đánh dấu navigation
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button');
+            if (target && (target.tagName === 'A' || (target.tagName === 'BUTTON' && target.type === 'submit'))) {
+                const href = target.getAttribute('href');
+                // Chỉ đánh dấu navigation nếu là link trong cùng domain
+                if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !target.hasAttribute('target')) {
+                    markNavigation();
+                }
+            }
+        }, true);
+        
+        // Lắng nghe form submit
+        document.addEventListener('submit', function(e) {
+            markNavigation();
+        }, true);
         
         // Gửi thông báo tab này đang mở
         function announceTabOpen() {
             channel.postMessage({type: 'tab_open', tabId: tabId});
-            // Lưu vào localStorage để các tab mới có thể đếm
+            // Lưu vào localStorage để các tab có thể tracking nhau
             try {
                 const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
                 tabs[tabId] = Date.now();
@@ -146,12 +175,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Gửi thông báo tab này đang đóng
         function announceTabClose() {
-            channel.postMessage({type: 'tab_close', tabId: tabId});
-            try {
-                const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
-                delete tabs[tabId];
-                localStorage.setItem('note_app_active_tabs', JSON.stringify(tabs));
-            } catch(e) {}
+            // Chỉ thông báo nếu thực sự đóng tab, không phải navigation
+            if (!isNavigating) {
+                channel.postMessage({type: 'tab_close', tabId: tabId});
+                try {
+                    const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
+                    delete tabs[tabId];
+                    localStorage.setItem('note_app_active_tabs', JSON.stringify(tabs));
+                } catch(e) {}
+            }
         }
         
         // Lắng nghe thông báo từ các tab khác
@@ -164,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Một tab khác đã đóng hoặc đang đóng, kiểm tra xem còn tab nào khác không
                 setTimeout(function() {
                     checkRemainingTabs();
-                }, 100);
+                }, 300);
             } else if (e.data.type === 'ping') {
                 // Phản hồi ping từ tab khác
                 channel.postMessage({type: 'pong', tabId: tabId});
@@ -175,26 +207,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
         
-        // Lắng nghe storage event để phát hiện khi tab khác đóng (fallback)
-        window.addEventListener('storage', function(e) {
-            if (e.key === 'note_app_active_tabs') {
-                // Kiểm tra lại các tab còn lại
-                setTimeout(function() {
-                    checkRemainingTabs();
-                }, 100);
-            }
-        });
-        
         // Kiểm tra các tab còn lại từ localStorage
         function checkRemainingTabs() {
+            // KHÔNG logout nếu đang navigation
+            if (isNavigating) {
+                return;
+            }
+            
             try {
                 const tabs = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
                 const now = Date.now();
                 const activeTabs = {};
                 
-                // Lọc các tab còn active (trong 30 giây gần đây)
+                // Lọc các tab còn active (trong 15 giây gần đây)
                 for (const [id, timestamp] of Object.entries(tabs)) {
-                    if (id !== tabId && (now - timestamp) < 30000) {
+                    if (id !== tabId && (now - timestamp) < 15000) {
                         activeTabs[id] = timestamp;
                     }
                 }
@@ -209,24 +236,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Đợi một chút để nhận pong từ các tab khác
                 setTimeout(function() {
+                    // KHÔNG logout nếu đang navigation
+                    if (isNavigating) {
+                        otherTabsActive = false;
+                        return;
+                    }
+                    
                     // Kiểm tra lại lần cuối
                     const finalCheck = JSON.parse(localStorage.getItem('note_app_active_tabs') || '{}');
-                    const finalActiveTabs = Object.keys(finalCheck).filter(id => id !== tabId && (Date.now() - finalCheck[id]) < 30000);
+                    const finalActiveTabs = Object.keys(finalCheck).filter(id => id !== tabId && (Date.now() - finalCheck[id]) < 15000);
                     
                     if (finalActiveTabs.length === 0 && !otherTabsActive) {
-                        // Không còn tab nào khác, có thể logout
+                        // Không còn tab nào khác và không đang navigation, có thể logout
                         performLogout();
                     } else {
                         // Vẫn còn tab khác, reset flag
                         otherTabsActive = false;
                     }
-                }, 200);
+                }, 500);
             } catch(e) {}
         }
         
         // Thực hiện logout
         function performLogout() {
-            if (isUnloading) return;
+            if (isUnloading || isNavigating) return;
             isUnloading = true;
             
             try {
@@ -244,19 +277,50 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Gửi heartbeat định kỳ để các tab khác biết tab này còn sống
         setInterval(function() {
-            if (!isUnloading) {
+            if (!isUnloading && !isNavigating) {
                 announceTabOpen();
             }
-        }, 5000);
+        }, 3000);
         
-        // Khi tab đóng
+        // Khi tab đóng - CHỈ xử lý khi thực sự đóng tab, không phải reload/navigation
         window.addEventListener('beforeunload', function(e) {
+            // Nếu đang navigation, không làm gì cả
+            if (isNavigating) {
+                return;
+            }
+            
+            // Đánh dấu là đang unload (có thể là đóng tab)
+            // Nhưng không logout ngay, để các tab khác kiểm tra
             announceTabClose();
-            // Thông báo cho các tab khác biết tab này đang đóng
             channel.postMessage({type: 'tab_closing', tabId: tabId});
         });
         
-        // Khi tab ẩn (chuyển tab khác)
+        // Khi pagehide - phân biệt reload vs đóng tab
+        window.addEventListener('pagehide', function(e) {
+            // e.persisted = true khi trang được cache (reload)
+            // e.persisted = false khi tab thực sự đóng
+            if (e.persisted === false && !isNavigating) {
+                // Tab thực sự đóng, không phải reload
+                announceTabClose();
+                // Các tab khác sẽ tự kiểm tra
+            } else if (e.persisted === true) {
+                // Đang reload, không làm gì
+                isNavigating = false; // Reset flag
+            }
+        });
+        
+        // Khi pageshow - trang được load/reload
+        window.addEventListener('pageshow', function(e) {
+            // e.persisted = true khi trang được restore từ cache
+            if (e.persisted) {
+                // Đang restore từ cache (reload), không logout
+                isNavigating = false;
+            }
+            // Khởi tạo lại tab
+            announceTabOpen();
+        });
+        
+        // Khi tab ẩn (chuyển tab khác) - KHÔNG logout
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'visible') {
                 // Tab hiện lại, gửi thông báo
@@ -264,23 +328,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Khi pagehide
-        window.addEventListener('pagehide', function(e) {
-            if (e.persisted === false) {
-                announceTabClose();
-                checkRemainingTabs();
-            }
-        });
-        
         // Khởi tạo: thông báo tab này đang mở
         announceTabOpen();
         
-        // Kiểm tra tab khác ngay khi load
+        // Kiểm tra tab khác ngay khi load (sau một chút để đảm bảo DOM ready)
         setTimeout(function() {
             checkRemainingTabs();
             // Ping các tab khác
             channel.postMessage({type: 'ping', tabId: tabId});
-        }, 500);
+        }, 1000);
     }
 });
 
