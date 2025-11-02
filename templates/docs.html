@@ -25,7 +25,7 @@
                        placeholder="Tìm kiếm tài liệu..." value="{{ search_query }}">
             </div>
             <div class="col-md-4">
-                <select class="form-select" name="category" onchange="this.form.submit()">
+                <select class="form-select" name="category" onchange="clearSearchAndSubmit(this)">
                     <option value="all" {% if current_category == 'all' %}selected{% endif %}>Tất cả danh mục</option>
                     {% for cat in categories %}
                     <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
@@ -114,5 +114,19 @@
     </a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function clearSearchAndSubmit(selectElement) {
+    // Tìm input search trong form
+    const form = selectElement.closest('form');
+    const searchInput = form.querySelector('input[name="search"]');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    form.submit();
+}
+</script>
 {% endblock %}
 

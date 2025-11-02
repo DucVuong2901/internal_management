@@ -23,12 +23,12 @@
         <div class="mb-3">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                 <span class="text-muted me-2"><strong>Danh mục:</strong></span>
-                <a href="{{ url_for('notes', search=search_query) }}" 
+                <a href="{{ url_for('notes') }}" 
                    class="btn btn-sm {% if current_category == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                     Tất cả
                 </a>
                 {% for cat in categories %}
-                <a href="{{ url_for('notes', category=cat, search=search_query) }}" 
+                <a href="{{ url_for('notes', category=cat) }}" 
                    class="btn btn-sm {% if current_category == cat %}btn-primary{% else %}btn-outline-primary{% endif %}">
                     {{ cat }}
                 </a>
@@ -68,15 +68,15 @@
 <div class="notes-masonry-container" id="notesContainer">
     {% for note in notes %}
     <div class="note-card-wrapper">
-        <div class="card shadow-sm clickable-card" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" 
+        <div class="card shadow-sm clickable-card note-card-fixed" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" 
              data-url="{{ url_for('view_note', id=note.id) }}" data-note-id="{{ note.id }}"
              onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.15)'"
              onmouseout="this.style.transform=''; this.style.boxShadow=''">
             <div class="text-dark">
-                <div class="card-header d-flex justify-content-between align-items-center bg-light">
-                    <h5 class="mb-0 flex-grow-1" style="font-size: 1.1rem;">{{ note.title | safe }}</h5>
+                <div class="card-header d-flex justify-content-between align-items-center bg-light" style="padding: 0.5rem 0.75rem;">
+                    <h5 class="mb-0 flex-grow-1" style="font-size: 0.95rem; font-weight: 600;">{{ note.title | safe }}</h5>
                     <div class="d-flex align-items-center gap-2 ms-2">
-                        <span class="badge bg-primary" style="font-size: 0.75rem;">{{ note.category }}</span>
+                        <span class="badge bg-primary" style="font-size: 0.65rem; padding: 0.2em 0.5em;">{{ note.category }}</span>
                         <div class="dropdown">
                             <button class="btn btn-link dropdown-toggle p-0 m-0 border-0" type="button" id="dropdownMenu{{ note.id }}" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.3em; line-height:1; color: #333;">
                                 <i class="bi bi-three-dots"></i>
@@ -117,53 +117,70 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body d-flex flex-column" style="padding: 0.5rem 1rem 1rem 1rem;">
+                <div class="card-body d-flex flex-column" style="padding: 0.4rem 0.75rem 0.75rem 0.75rem;">
                     <div class="note-content-preview" id="note-preview-{{ note.id }}" 
                          style="overflow: hidden; position: relative;">
                         {% set note_text = (note.content|replace('<br>', '\n')|replace('<br/>', '\n')|replace('<BR>', '\n')|striptags)|trim %}
                         {% if note_text|length > 0 %}
-                        <div class="card-text note-short" id="note-short-{{ note.id }}" 
-                             style="display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; max-height: 96px;">
-                            {{ note_text[:200] }}{% if note_text|length > 200 %}...{% endif %}
-                        </div>
-                        {% if note_text|length > 200 %}
-                        <a class="btn btn-link btn-sm p-0 mt-2 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
-                           style="font-size: 0.85em; text-decoration: none;" 
-                           onmouseover="this.style.textDecoration='underline'" 
-                           onmouseout="this.style.textDecoration='none'">
-                            <i class="bi bi-arrow-right"></i> Xem thêm
-                        </a>
+                        {% if note.attachments %}
+                            {# Có file đính kèm: hiển thị ngắn gọn (3 dòng) #}
+                            <div class="card-text note-short" id="note-short-{{ note.id }}" 
+                                 style="display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; max-height: 72px;">
+                                {{ note_text[:200] }}{% if note_text|length > 200 %}...{% endif %}
+                            </div>
+                            {% if note_text|length > 200 %}
+                            <a class="btn btn-link btn-sm p-0 mt-1 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
+                               style="font-size: 0.8em; text-decoration: none;" 
+                               onmouseover="this.style.textDecoration='underline'" 
+                               onmouseout="this.style.textDecoration='none'">
+                                <i class="bi bi-arrow-right"></i> Xem thêm
+                            </a>
+                            {% endif %}
+                        {% else %}
+                            {# Không có file: hiển thị nhiều hơn (8 dòng) #}
+                            <div class="card-text note-short note-full-preview" id="note-short-{{ note.id }}" 
+                                 style="display: -webkit-box; -webkit-line-clamp: 8; line-clamp: 8; -webkit-box-orient: vertical; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; color: var(--text-color); overflow: hidden; text-overflow: ellipsis;">
+                                {{ note_text[:500] }}{% if note_text|length > 500 %}...{% endif %}
+                            </div>
+                            {% if note_text|length > 500 %}
+                            <a class="btn btn-link btn-sm p-0 mt-1 d-inline-block" href="{{ url_for('view_note', id=note.id) }}" 
+                               style="font-size: 0.8em; text-decoration: none;" 
+                               onmouseover="this.style.textDecoration='underline'" 
+                               onmouseout="this.style.textDecoration='none'">
+                                <i class="bi bi-arrow-right"></i> Xem thêm
+                            </a>
+                            {% endif %}
                         {% endif %}
                         {% else %}
-                        <div class="text-muted fst-italic" style="font-size: 0.9em;">
+                        <div class="text-muted fst-italic" style="font-size: 0.8em;">
                             Không có nội dung
                         </div>
                         {% endif %}
                     </div>
                     {% if note.attachments %}
-                    <div class="attachments-preview d-flex flex-row gap-2 align-items-center flex-wrap mb-3 p-2 rounded" style="background-color: #f8f9fa; min-height: 60px; max-height: 80px; overflow: hidden;">
+                    <div class="attachments-preview d-flex flex-row align-items-center flex-wrap mb-2 rounded" style="background-color: #f8f9fa; min-height: 65px; max-height: 65px; overflow: hidden; padding: 0.4rem; gap: 0.5rem;">
                         {% for att in note.attachments %}
                             {% set fname = att.get('filename', '')|lower %}
                             {% set orig_name = att.get('original_filename', att.get('filename')) %}
-                            <div class="attachment-item text-center" style="width:auto; min-width:55px; max-width:90px;">
+                            <div class="attachment-item text-center" style="width:auto; min-width:50px; max-width:70px;">
                             {% if '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.bmp' in fname or '.webp' in fname %}
-                                <img src="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}" 
-                                     alt="{{ orig_name }}" style="width:40px; height:40px; object-fit:cover; border-radius:5px; border:1px solid #ddd; background: #fff; cursor:pointer;" loading="lazy"
+                                    <img src="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}" 
+                                     alt="{{ orig_name }}" style="width:35px; height:35px; object-fit:cover; border-radius:4px; border:1px solid #ddd; background: #fff; cursor:pointer;" loading="lazy"
                                      class="open-image-modal" data-img-url="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}">
                             {% else %}
                                 <a href="{{ url_for('download_attachment', note_id=note.id, filename=att['filename']) }}" target="_blank">
-                                    <i class="bi bi-file-earmark" style="font-size:28px; color: #146caa;"></i>
+                                    <i class="bi bi-file-earmark" style="font-size:24px; color: #146caa;"></i>
                                 </a>
                             {% endif %}
-                                <div style="font-size:10px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:65px; margin:0 auto;" title="{{ orig_name }}">{{ orig_name }}</div>
+                                <div style="font-size:9px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:60px; margin:0 auto;" title="{{ orig_name }}">{{ orig_name }}</div>
                             </div>
                         {% endfor %}
                     </div>
                     {% endif %}
-                    <div class="pt-2 border-top" style="margin-top: 0.5rem;">
-                        <small class="text-muted">
+                    <div class="pt-2 border-top" style="margin-top: auto; padding-top: 0.4rem;">
+                        <small class="text-muted" style="font-size: 0.75rem;">
                             <i class="bi bi-clock"></i> 
-                            Cập nhật: {{ note.updated_at.strftime('%d/%m/%Y %H:%M') if note.updated_at else '' }}
+                            {{ note.updated_at.strftime('%d/%m/%Y %H:%M') if note.updated_at else '' }}
                         </small>
                     </div>
                 </div>
@@ -185,42 +202,111 @@
 
 {% block extra_css %}
 <style>
-/* Đảm bảo card không bị cắt */
-.note-card-wrapper {
-    display: inline-block;
-    width: 100%;
-    margin-bottom: 0;
-    -webkit-column-break-inside: avoid;
-    page-break-inside: avoid;
-    break-inside: avoid;
-}
-
-.note-card-wrapper {
-    height: auto;
-}
-
-.note-card-wrapper .card {
-    display: block;
-    width: 100%;
-    height: auto;
-}
-
+/* Đảm bảo card có cùng kích thước và căn chỉnh ngay hàng - tối đa 3 cột */
 .notes-masonry-container {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
     width: 100%;
     max-width: 100%;
-    margin: 0 auto;
-    align-items: flex-start;
+    align-items: start;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-.notes-column {
-    flex: 1;
-    min-width: 0;
+@media (max-width: 768px) {
+    .notes-masonry-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 991px) {
+    .notes-masonry-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .notes-masonry-container {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        max-width: 100%;
+    }
+}
+
+.note-card-wrapper {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    box-sizing: border-box;
+}
+
+.note-card-fixed {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    min-height: 240px;
+    border: 2px solid #adb5bd !important;
+    border-radius: 0.375rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0;
+}
+
+[data-theme="dark"] .note-card-fixed {
+    border: 2px solid #6c757d !important;
+}
+
+.note-card-fixed .card-header {
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+}
+
+.note-card-fixed .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.4rem 0.75rem 0.75rem 0.75rem;
+    min-height: 150px;
+}
+
+.note-card-fixed .note-content-preview {
+    flex: 1;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-card-fixed .note-content-preview .card-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Khi không có attachments, preview nội dung mở rộng hơn */
+.note-card-fixed .note-full-preview {
+    flex: 1;
+    min-height: 120px;
+}
+
+.note-card-fixed .attachments-preview {
+    flex-shrink: 0;
+    min-height: 65px;
+    max-height: 65px;
+    display: flex;
+    align-items: center;
+    padding: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.note-card-fixed .border-top {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: 0.5rem;
 }
 </style>
 {% endblock %}
@@ -228,93 +314,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Phân bố các thẻ vào các cột một cách cân bằng (giống Google Keep)
-    function distributeCards() {
-        const container = document.querySelector('#notesContainer');
-        if (!container) return;
-        
-        // Lấy tất cả các thẻ ghi chú
-        const wrappers = Array.from(container.querySelectorAll('.note-card-wrapper'));
-        if (wrappers.length === 0) return;
-        
-        // Xóa các cột cũ
-        const oldColumns = container.querySelectorAll('.notes-column');
-        oldColumns.forEach(col => col.remove());
-        
-        // Tính số cột
-        const parentContainer = container.parentElement;
-        const containerWidth = parentContainer ? parentContainer.offsetWidth : window.innerWidth;
-        let numColumns = 1;
-        
-        if (containerWidth < 768) {
-            numColumns = 1;
-        } else if (containerWidth < 1200) {
-            numColumns = 2;
-        } else {
-            numColumns = 3;
-        }
-        
-        // Tạo các cột mới
-        const columns = [];
-        const columnHeights = [];
-        for (let i = 0; i < numColumns; i++) {
-            const column = document.createElement('div');
-            column.className = 'notes-column';
-            container.appendChild(column);
-            columns.push(column);
-            columnHeights.push(0);
-        }
-        
-        // Tạo container ẩn để đo chiều cao
-        const hiddenContainer = document.createElement('div');
-        hiddenContainer.style.position = 'absolute';
-        hiddenContainer.style.visibility = 'hidden';
-        hiddenContainer.style.width = container.offsetWidth / numColumns + 'px';
-        document.body.appendChild(hiddenContainer);
-        
-        // Đo chiều cao của từng thẻ trong container ẩn
-        const cardHeights = wrappers.map(wrapper => {
-            const clone = wrapper.cloneNode(true);
-            hiddenContainer.appendChild(clone);
-            const height = clone.offsetHeight;
-            hiddenContainer.removeChild(clone);
-            return height + 16; // +16 là gap (1rem)
-        });
-        
-        // Xóa container ẩn
-        document.body.removeChild(hiddenContainer);
-        
-        // Phân bố các thẻ vào cột có chiều cao thấp nhất
-        wrappers.forEach((wrapper, index) => {
-            // Tìm cột có chiều cao thấp nhất
-            let minHeight = columnHeights[0];
-            let minIndex = 0;
-            for (let i = 1; i < columnHeights.length; i++) {
-                if (columnHeights[i] < minHeight) {
-                    minHeight = columnHeights[i];
-                    minIndex = i;
-                }
-            }
-            
-            // Thêm thẻ vào cột đó
-            columns[minIndex].appendChild(wrapper);
-            
-            // Cập nhật chiều cao của cột
-            columnHeights[minIndex] += cardHeights[index];
-        });
-    }
-    
-    // Phân bố khi load
-    distributeCards();
-    
-    // Throttle function để tránh tính toán quá nhiều khi resize
-    let resizeTimer;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function() {
-            distributeCards();
-        }, 150); // Delay 150ms sau khi ngừng resize
-    });
+    // Không cần phân bố cards nữa vì đã dùng CSS Grid
     
     // Helpers for contrast
     function hexToRgb(hex){

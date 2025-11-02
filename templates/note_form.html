@@ -289,6 +289,135 @@ function handleTitlePaste(e) {
     // Focus lại title editor sau khi paste
     document.getElementById('title-editor').focus();
 }
+
+// File upload preview handler
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('attachments');
+    const filePreview = document.getElementById('filePreview');
+    const fileList = document.getElementById('fileList');
+    let selectedFiles = [];
+    
+    function renderFilePreview() {
+        fileList.innerHTML = '';
+        
+        if (selectedFiles.length > 0) {
+            filePreview.style.display = 'block';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'col-md-3 col-sm-4 col-6';
+                fileItem.setAttribute('data-file-index', index);
+                
+                const isImage = file.type.startsWith('image/');
+                const fileSize = (file.size / 1024).toFixed(1); // KB
+                
+                let previewContent = '';
+                if (isImage) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = fileItem.querySelector('img');
+                        if (img) img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                    previewContent = `
+                        <div class="card mb-2 shadow-sm position-relative">
+                            <div class="position-relative">
+                                <img src="" alt="${file.name}" class="card-img-top" style="height: 150px; object-fit: cover; background: #f0f0f0;">
+                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-file-btn" 
+                                        data-file-index="${index}" style="opacity: 0.9; z-index: 10;">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </div>
+                            <div class="card-body p-2">
+                                <small class="text-truncate d-block" title="${file.name}">${file.name}</small>
+                                <small class="text-muted">${fileSize} KB</small>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let icon = 'bi-file-earmark';
+                    if (file.type.includes('pdf')) icon = 'bi-file-earmark-pdf';
+                    else if (file.type.includes('word') || file.name.match(/\.(doc|docx)$/i)) icon = 'bi-file-earmark-word';
+                    else if (file.type.includes('excel') || file.name.match(/\.(xls|xlsx)$/i)) icon = 'bi-file-earmark-excel';
+                    else if (file.type.includes('zip') || file.name.match(/\.(zip|rar)$/i)) icon = 'bi-file-earmark-zip';
+                    else if (file.type.includes('text') || file.name.match(/\.txt$/i)) icon = 'bi-file-earmark-text';
+                    
+                    previewContent = `
+                        <div class="card mb-2 shadow-sm position-relative">
+                            <div class="card-body text-center">
+                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-file-btn" 
+                                        data-file-index="${index}" style="opacity: 0.9; z-index: 10;">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                <i class="bi ${icon}" style="font-size: 3rem; color: #6c757d;"></i>
+                                <p class="card-text">
+                                    <small class="text-truncate d-block" title="${file.name}">${file.name}</small>
+                                    <small class="text-muted">${fileSize} KB</small>
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                fileItem.innerHTML = previewContent;
+                fileList.appendChild(fileItem);
+            });
+        } else {
+            filePreview.style.display = 'none';
+        }
+    }
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const newFiles = Array.from(e.target.files);
+            // Merge with existing files if user selects more
+            if (selectedFiles.length > 0) {
+                // Add new files to existing ones
+                newFiles.forEach(file => {
+                    // Check if file already exists (by name and size)
+                    const exists = selectedFiles.some(f => f.name === file.name && f.size === file.size);
+                    if (!exists) {
+                        selectedFiles.push(file);
+                    }
+                });
+            } else {
+                selectedFiles = newFiles;
+            }
+            
+            // Update file input
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => {
+                dt.items.add(file);
+            });
+            fileInput.files = dt.files;
+            
+            renderFilePreview();
+        });
+        
+        // Handle remove file button
+        fileList.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-file-btn')) {
+                const btn = e.target.closest('.remove-file-btn');
+                const fileIndex = parseInt(btn.getAttribute('data-file-index'));
+                
+                if (fileIndex >= 0 && fileIndex < selectedFiles.length) {
+                    // Remove from selectedFiles array
+                    selectedFiles.splice(fileIndex, 1);
+                    
+                    // Update file input
+                    const dt = new DataTransfer();
+                    selectedFiles.forEach(file => {
+                        dt.items.add(file);
+                    });
+                    fileInput.files = dt.files;
+                    
+                    // Re-render preview
+                    renderFilePreview();
+                }
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
 
@@ -391,8 +520,14 @@ function handleTitlePaste(e) {
                         <label for="attachments" class="form-label">
                             <i class="bi bi-paperclip"></i> Đính kèm file
                         </label>
-                        <input type="file" class="form-control" id="attachments" name="attachments" multiple>
-                        <small class="form-text text-muted">Có thể chọn nhiều file (hình ảnh, tài liệu, v.v.)</small>
+                        <input type="file" class="form-control" id="attachments" name="attachments" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar">
+                        <small class="form-text text-muted">Có thể chọn nhiều file cùng lúc (hình ảnh, tài liệu PDF, Word, Excel, v.v.)</small>
+                        
+                        <!-- Preview Area for Selected Files -->
+                        <div id="filePreview" class="mt-3" style="display: none;">
+                            <label class="form-label">Files đã chọn:</label>
+                            <div id="fileList" class="row g-2"></div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Màu nền tab ghi chú</label>

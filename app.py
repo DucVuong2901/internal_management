@@ -537,6 +537,46 @@ def delete_note(id):
     flash('Ghi chú đã được xóa!', 'success')
     return redirect(url_for('notes'))
 
+@app.route('/notes/<int:note_id>/picture/<filename>')
+@login_required
+def view_picture(note_id, filename):
+    """Xem ảnh full screen"""
+    note = file_storage.get_note(note_id)
+    if not note:
+        flash('Ghi chú không tồn tại!', 'danger')
+        return redirect(url_for('notes'))
+    
+    # Kiểm tra file có thuộc note này không
+    attachment_exists = any(
+        (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename 
+        for att in note.attachments
+    )
+    if not attachment_exists:
+        flash('File không tồn tại!', 'danger')
+        return redirect(url_for('view_note', id=note_id))
+    
+    # Kiểm tra có phải là hình ảnh không
+    is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'))
+    if not is_image:
+        flash('File này không phải là hình ảnh!', 'danger')
+        return redirect(url_for('view_note', id=note_id))
+    
+    # Tìm attachment info
+    attachment_info = None
+    for att in note.attachments:
+        if (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename:
+            attachment_info = att
+            break
+    
+    original_filename = attachment_info.get('original_filename', filename) if attachment_info else filename
+    image_url = url_for('download_attachment', note_id=note_id, filename=filename)
+    
+    return render_template('view_picture.html', 
+                         note=note, 
+                         filename=filename,
+                         original_filename=original_filename,
+                         image_url=image_url)
+
 @app.route('/notes/<int:note_id>/attachment/<filename>')
 @login_required
 def download_attachment(note_id, filename):
@@ -546,15 +586,19 @@ def download_attachment(note_id, filename):
         flash('Ghi chú không tồn tại!', 'danger')
         return redirect(url_for('notes'))
     
-    # Kiểm tra file có thuộc note này không
-    # attachments là list of dict, cần truy cập đúng cách
-    attachment_exists = any(
-        (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename 
-        for att in note.attachments
-    )
-    if not attachment_exists:
+    # Tìm attachment info để lấy original_filename
+    attachment_info = None
+    for att in note.attachments:
+        if (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename:
+            attachment_info = att
+            break
+    
+    if not attachment_info:
         flash('File không tồn tại!', 'danger')
         return redirect(url_for('view_note', id=note_id))
+    
+    # Lấy tên file gốc, nếu không có thì dùng filename hiện tại
+    original_filename = attachment_info.get('original_filename', filename) if isinstance(attachment_info, dict) else getattr(attachment_info, 'original_filename', filename)
     
     # Nếu là hình ảnh, hiển thị trong browser, không force download
     is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'))
@@ -562,7 +606,8 @@ def download_attachment(note_id, filename):
     return send_from_directory(
         file_storage.notes_uploads_dir,
         filename,
-        as_attachment=not is_image  # Force download nếu không phải hình ảnh
+        as_attachment=not is_image,  # Force download nếu không phải hình ảnh
+        download_name=original_filename  # Sử dụng tên file gốc khi download
     )
 
 @app.route('/notes/<int:note_id>/attachment/<filename>/delete', methods=['POST'])
@@ -770,14 +815,19 @@ def download_doc_attachment(doc_id, filename):
         flash('Tài liệu không tồn tại!', 'danger')
         return redirect(url_for('docs'))
     
-    # Kiểm tra file có thuộc doc này không
-    attachment_exists = any(
-        (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename 
-        for att in doc.attachments
-    )
-    if not attachment_exists:
+    # Tìm attachment info để lấy original_filename
+    attachment_info = None
+    for att in doc.attachments:
+        if (att.get('filename') if isinstance(att, dict) else getattr(att, 'filename', None)) == filename:
+            attachment_info = att
+            break
+    
+    if not attachment_info:
         flash('File không tồn tại!', 'danger')
         return redirect(url_for('view_doc', id=doc_id))
+    
+    # Lấy tên file gốc, nếu không có thì dùng filename hiện tại
+    original_filename = attachment_info.get('original_filename', filename) if isinstance(attachment_info, dict) else getattr(attachment_info, 'original_filename', filename)
     
     # Nếu là hình ảnh, hiển thị trong browser, không force download
     is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'))
@@ -785,7 +835,8 @@ def download_doc_attachment(doc_id, filename):
     return send_from_directory(
         file_storage.docs_uploads_dir,
         filename,
-        as_attachment=not is_image  # Force download nếu không phải hình ảnh
+        as_attachment=not is_image,  # Force download nếu không phải hình ảnh
+        download_name=original_filename  # Sử dụng tên file gốc khi download
     )
 
 @app.route('/docs/<int:doc_id>/attachment/<filename>/delete', methods=['POST'])

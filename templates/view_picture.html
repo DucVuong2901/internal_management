@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}{{ original_filename }} - Xem ảnh{% endblock %}
+
+{% block extra_css %}
+<style>
+body {
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+.image-viewer-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.image-viewer-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 15px 20px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    z-index: 10000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.image-viewer-content {
+    max-width: 100%;
+    max-height: calc(100vh - 100px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.image-viewer-content.loading {
+    opacity: 0;
+}
+
+.image-viewer-content.loaded {
+    opacity: 1;
+}
+
+.btn-back {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.btn-download {
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background 0.2s;
+    margin-left: 10px;
+}
+
+.btn-download:hover {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+}
+
+.image-info {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+}
+
+.hint-text {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="image-viewer-container">
+    <div class="image-viewer-header">
+        <div>
+            <a href="{{ url_for('view_note', id=note.id) }}" class="btn-back">
+                <i class="bi bi-arrow-left"></i> Quay lại
+            </a>
+        </div>
+        <div class="image-info">
+            <strong>{{ original_filename }}</strong>
+        </div>
+        <div>
+            <a href="{{ image_url }}" download="{{ original_filename }}" class="btn-download">
+                <i class="bi bi-download"></i> Tải xuống
+            </a>
+        </div>
+    </div>
+    
+    <img src="{{ image_url }}" 
+         alt="{{ original_filename }}" 
+         class="image-viewer-content loading"
+         id="fullImage"
+         draggable="false"
+         onload="this.classList.remove('loading'); this.classList.add('loaded');">
+    
+    <div class="hint-text">
+        Nhấn <kbd style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">ESC</kbd> để quay lại
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fullImage = document.getElementById('fullImage');
+    
+    // Xử lý phím ESC để quay lại
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "{{ url_for('view_note', id=note.id) }}";
+        }
+    });
+    
+    // Ngăn các tương tác không mong muốn với ảnh
+    fullImage.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        return false;
+    });
+    
+    fullImage.addEventListener('dragstart', function(e) {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Click vào background để quay lại
+    document.querySelector('.image-viewer-container').addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('image-viewer-container')) {
+            window.location.href = "{{ url_for('view_note', id=note.id) }}";
+        }
+    });
+    
+    // Ngăn click vào ảnh đóng viewer
+    fullImage.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    // Preload ảnh để tránh hiện tượng nhấp nháy
+    if (!fullImage.complete) {
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            fullImage.src = fullImage.src;
+        };
+        tempImg.src = fullImage.src;
+    }
+});
+</script>
+{% endblock %}
+

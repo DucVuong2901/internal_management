@@ -5,9 +5,9 @@
 {% block content %}
 <div class="row mb-3">
     <div class="col-md-10 mx-auto">
-        <button type="button" onclick="goBack()" class="btn btn-outline-secondary">
+        <a href="{{ url_for('notes') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Quay lại danh sách ghi chú
-        </button>
+        </a>
     </div>
 </div>
 <div class="row">
@@ -51,9 +51,7 @@
                                 <div class="card-body p-2 text-center">
                                     
                                     {% if is_image %}
-                                    <a href="javascript:void(0)" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#imageModal{{ loop.index }}"
+                                    <a href="{{ url_for('view_picture', note_id=note.id, filename=filename) }}" 
                                         style="cursor: pointer; text-decoration: none; display: block;">
                                             <img src="{{ download_url }}" 
                                                 class="img-thumbnail w-100" 
@@ -81,27 +79,6 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        {% if is_image %}
-                        <div class="modal fade" id="imageModal{{ loop.index }}" tabindex="-1" data-bs-backdrop="true" data-bs-keyboard="true">
-                            <div class="modal-dialog modal-xl modal-dialog-centered">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">{{ original_filename }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body text-center modal-image-body" style="padding: 20px;">
-                                        <img src="{{ download_url }}" 
-                                            class="img-fluid modal-image-loaded" 
-                                            style="opacity: 0; transition: opacity 0.3s; max-height: 80vh; max-width: 90vw; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;" 
-                                            alt="{{ original_filename }}" 
-                                            draggable="false"
-                                            onload="this.style.opacity='1';">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -134,9 +111,9 @@
                         </form>
                         {% endif %}
                     {% endif %}
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="goBack()">
+                    <a href="{{ url_for('notes') }}" class="btn btn-secondary btn-sm">
                         <i class="bi bi-arrow-left"></i> Quay lại
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -175,22 +152,6 @@
 
 {% endblock %}
 
-{% block extra_css %}
-<style>
-.modal-image-body {
-    min-height: 50vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.modal-image-loaded {
-    transition: opacity 0.3s ease-in-out;
-}
-</style>
-{% endblock %}
-
 {% block extra_js %}
 <script>
 // Function để download file
@@ -208,17 +169,6 @@ function downloadFile(event, url, filename) {
     document.body.removeChild(link);
 }
 
-function goBack() {
-    // Kiểm tra xem có document.referrer (trang trước) không
-    if (document.referrer && document.referrer !== window.location.href) {
-        // Quay lại trang trước
-        window.history.back();
-    } else {
-        // Nếu không có referrer hoặc là cùng trang, quay về trang notes
-        window.location.href = "{{ url_for('notes') }}";
-    }
-}
-
 // Thêm phím tắt Alt+Left để quay lại (chỉ khi không focus vào input)
 document.addEventListener('keydown', function(e) {
     // Chỉ xử lý khi không focus vào input, textarea, hoặc có thể chỉnh sửa
@@ -227,61 +177,10 @@ document.addEventListener('keydown', function(e) {
         // Alt+Left để quay lại
         if (e.altKey && e.key === 'ArrowLeft') {
             e.preventDefault();
-            goBack();
+            window.location.href = "{{ url_for('notes') }}";
         }
     }
 });
 
-// Xử lý modal ảnh để tránh bị nhảy khi load
-document.addEventListener('DOMContentLoaded', function() {
-    // Xử lý tất cả các modal ảnh
-    const imageModals = document.querySelectorAll('[id^="imageModal"]');
-    
-    imageModals.forEach(function(modalElement) {
-        const modal = new bootstrap.Modal(modalElement);
-        const modalBody = modalElement.querySelector('.modal-body');
-        const img = modalElement.querySelector('img');
-        
-        if (!img || !modalBody) return;
-        
-        // Lưu kích thước ban đầu của modal body
-        let modalBodyHeight = null;
-        
-        // Khi modal sắp hiển thị
-        modalElement.addEventListener('show.bs.modal', function() {
-            // Đặt chiều cao cố định cho modal body để tránh nhảy
-            modalBody.style.height = '80vh';
-            modalBody.style.overflow = 'auto';
-            // Đảm bảo flexbox đã được set
-            if (!modalBody.classList.contains('modal-image-body')) {
-                modalBody.style.display = 'flex';
-                modalBody.style.alignItems = 'center';
-                modalBody.style.justifyContent = 'center';
-            }
-        });
-        
-        // Khi modal đã hiển thị
-        modalElement.addEventListener('shown.bs.modal', function() {
-            // Preload ảnh nếu chưa load
-            if (!img.complete) {
-                const tempImg = new Image();
-                tempImg.onload = function() {
-                    img.style.opacity = '1';
-                };
-                tempImg.src = img.src;
-            } else {
-                img.style.opacity = '1';
-            }
-        });
-        
-        // Khi modal ẩn
-        modalElement.addEventListener('hidden.bs.modal', function() {
-            // Reset opacity của ảnh
-            img.style.opacity = '0';
-            // Reset chiều cao modal body
-            modalBody.style.height = '';
-        });
-    });
-});
 </script>
 {% endblock %}
