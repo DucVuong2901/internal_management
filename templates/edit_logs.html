@@ -69,7 +69,7 @@
                                 <i class="bi bi-eye"></i> Chi tiết
                             </button>
                             <div class="collapse mt-2" id="changes-{{ log.id }}">
-                                <div class="card card-body bg-light">
+                                <div class="card card-body bg-light" style="max-width: 100%; overflow-x: auto;">
                                     {% set changes = log.changes %}
                                     
                                     {% if changes.get('action') %}
@@ -77,38 +77,76 @@
                                     {% elif changes.get('title') %}
                                         {# Xử lý title - có thể là string hoặc dict #}
                                         {% if changes.title is mapping and changes.title.get('old') and changes.title.get('new') %}
-                                        <div class="mb-2">
-                                            <strong>Tiêu đề:</strong><br>
-                                            <span class="text-danger">- {{ changes.title.old }}</span><br>
-                                            <span class="text-success">+ {{ changes.title.new }}</span>
+                                        <div class="mb-3">
+                                            <strong>Tiêu đề:</strong>
+                                            <div class="mt-2">
+                                                <div class="change-item-old mb-2 p-2 rounded" style="background-color: #fee; border-left: 3px solid #dc3545;">
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
+                                                    <div class="change-content-old">{{ changes.title.old | striptags | trim }}</div>
+                                                </div>
+                                                <div class="change-item-new p-2 rounded" style="background-color: #efe; border-left: 3px solid #28a745;">
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
+                                                    <div class="change-content-new">{{ changes.title.new | striptags | trim }}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                         {% elif changes.title %}
-                                        <div class="mb-2"><strong>Tiêu đề:</strong> {{ changes.title }}</div>
+                                        <div class="mb-2"><strong>Tiêu đề:</strong> 
+                                            <span class="p-2 rounded d-inline-block" style="background-color: #f8f9fa;">
+                                                {{ changes.title | striptags | trim }}
+                                            </span>
+                                        </div>
                                         {% endif %}
                                         
                                         {# Xử lý content - có thể là string hoặc dict #}
                                         {% if changes.get('content') %}
                                             {% if changes.content is mapping and changes.content.get('old') %}
-                                            <div class="mb-2">
-                                                <strong>Nội dung:</strong><br>
-                                                <span class="text-danger">- {{ changes.content.old }}</span><br>
-                                                <span class="text-success">+ {{ changes.content.new }}</span>
+                                            <div class="mb-3">
+                                                <strong>Nội dung:</strong>
+                                                <div class="mt-2">
+                                                    <div class="change-item-old mb-2 p-2 rounded" style="background-color: #fee; border-left: 3px solid #dc3545;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
+                                                        <div class="change-content-old" style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">
+                                                            {{ changes.content.old | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="change-item-new p-2 rounded" style="background-color: #efe; border-left: 3px solid #28a745;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
+                                                        <div class="change-content-new" style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">
+                                                            {{ changes.content.new | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim }}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                             {% else %}
-                                            <div class="mb-2"><strong>Nội dung:</strong> {{ changes.content }}</div>
+                                            <div class="mb-2"><strong>Nội dung:</strong> 
+                                                <div class="mt-1 p-2 rounded" style="background-color: #f8f9fa; white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">
+                                                    {{ changes.content | striptags | replace('<br>', '\n') | replace('<br/>', '\n') | replace('&nbsp;', ' ') | trim }}
+                                                </div>
+                                            </div>
                                             {% endif %}
                                         {% endif %}
                                         
                                         {# Xử lý category - có thể là string hoặc dict #}
                                         {% if changes.get('category') %}
                                             {% if changes.category is mapping and changes.category.get('old') %}
-                                            <div class="mb-2">
-                                                <strong>Danh mục:</strong><br>
-                                                <span class="text-danger">- {{ changes.category.old }}</span><br>
-                                                <span class="text-success">+ {{ changes.category.new }}</span>
+                                            <div class="mb-3">
+                                                <strong>Danh mục:</strong>
+                                                <div class="mt-2">
+                                                    <div class="change-item-old mb-2 p-2 rounded d-inline-block" style="background-color: #fee; border-left: 3px solid #dc3545;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
+                                                        <span class="badge bg-secondary">{{ changes.category.old }}</span>
+                                                    </div>
+                                                    <div class="change-item-new p-2 rounded d-inline-block" style="background-color: #efe; border-left: 3px solid #28a745;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
+                                                        <span class="badge bg-primary">{{ changes.category.new }}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                             {% else %}
-                                            <div class="mb-2"><strong>Danh mục:</strong> {{ changes.category }}</div>
+                                            <div class="mb-2"><strong>Danh mục:</strong> 
+                                                <span class="badge bg-secondary">{{ changes.category }}</span>
+                                            </div>
                                             {% endif %}
                                         {% endif %}
                                         
@@ -119,13 +157,23 @@
                                         
                                         {% if changes.get('role') %}
                                             {% if changes.role is mapping and changes.role.get('old') %}
-                                            <div class="mb-2">
-                                                <strong>Quyền:</strong><br>
-                                                <span class="text-danger">- {{ changes.role.old }}</span><br>
-                                                <span class="text-success">+ {{ changes.role.new }}</span>
+                                            <div class="mb-3">
+                                                <strong>Quyền:</strong>
+                                                <div class="mt-2">
+                                                    <div class="change-item-old mb-2 p-2 rounded d-inline-block" style="background-color: #fee; border-left: 3px solid #dc3545;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
+                                                        <span class="badge bg-secondary">{{ changes.role.old }}</span>
+                                                    </div>
+                                                    <div class="change-item-new p-2 rounded d-inline-block" style="background-color: #efe; border-left: 3px solid #28a745;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
+                                                        <span class="badge bg-warning">{{ changes.role.new }}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                             {% else %}
-                                            <div class="mb-2"><strong>Quyền:</strong> {{ changes.role }}</div>
+                                            <div class="mb-2"><strong>Quyền:</strong> 
+                                                <span class="badge bg-warning">{{ changes.role }}</span>
+                                            </div>
                                             {% endif %}
                                         {% endif %}
                                         
@@ -135,13 +183,29 @@
                                         
                                         {% if changes.get('is_active') %}
                                             {% if changes.is_active is mapping and changes.is_active.get('old') is not none %}
-                                            <div class="mb-2">
-                                                <strong>Trạng thái:</strong><br>
-                                                <span class="text-danger">- {{ 'Hoạt động' if changes.is_active.old else 'Không hoạt động' }}</span><br>
-                                                <span class="text-success">+ {{ 'Hoạt động' if changes.is_active.new else 'Không hoạt động' }}</span>
+                                            <div class="mb-3">
+                                                <strong>Trạng thái:</strong>
+                                                <div class="mt-2">
+                                                    <div class="change-item-old mb-2 p-2 rounded d-inline-block" style="background-color: #fee; border-left: 3px solid #dc3545;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-dash-circle"></i> Trước:</small>
+                                                        <span class="badge {% if changes.is_active.old %}bg-success{% else %}bg-secondary{% endif %}">
+                                                            {{ 'Hoạt động' if changes.is_active.old else 'Không hoạt động' }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="change-item-new p-2 rounded d-inline-block" style="background-color: #efe; border-left: 3px solid #28a745;">
+                                                        <small class="text-muted d-block mb-1"><i class="bi bi-plus-circle"></i> Sau:</small>
+                                                        <span class="badge {% if changes.is_active.new %}bg-success{% else %}bg-secondary{% endif %}">
+                                                            {{ 'Hoạt động' if changes.is_active.new else 'Không hoạt động' }}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                             {% else %}
-                                            <div class="mb-2"><strong>Trạng thái:</strong> {{ 'Hoạt động' if changes.is_active else 'Không hoạt động' }}</div>
+                                            <div class="mb-2"><strong>Trạng thái:</strong> 
+                                                <span class="badge {% if changes.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {{ 'Hoạt động' if changes.is_active else 'Không hoạt động' }}
+                                                </span>
+                                            </div>
                                             {% endif %}
                                         {% endif %}
                                     {% else %}

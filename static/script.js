@@ -134,6 +134,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let isNavigating = false; // Flag để phân biệt navigation vs đóng tab
         let otherTabsActive = false;
         let navigationTimer = null;
+        let isInitializing = true; // Flag để đánh dấu đang khởi tạo
+        let initTimeout = null;
         
         // Đánh dấu đang navigation (không logout)
         function markNavigation() {
@@ -156,6 +158,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener('click', function(e) {
             // Cập nhật activity ngay khi có click (tab đang active)
             updateActivity();
+            
+            // Nếu đang khởi tạo, đảm bảo tab được announce và reset flag
+            if (isInitializing) {
+                announceTabOpen();
+                // Hủy timeout khởi tạo nếu có tương tác sớm (user đang dùng)
+                if (initTimeout) {
+                    clearTimeout(initTimeout);
+                }
+                // Giữ isInitializing thêm một chút để đảm bảo
+                setTimeout(function() {
+                    isInitializing = false;
+                }, 2000);
+            }
             
             const target = e.target.closest('a, button');
             if (target && (target.tagName === 'A' || (target.tagName === 'BUTTON' && target.type === 'submit'))) {
@@ -221,8 +236,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Kiểm tra các tab còn lại từ localStorage
         function checkRemainingTabs() {
-            // KHÔNG logout nếu đang navigation
-            if (isNavigating) {
+            // KHÔNG logout nếu đang navigation HOẶC đang khởi tạo
+            if (isNavigating || isInitializing) {
                 return;
             }
             
@@ -271,7 +286,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Thực hiện logout
         function performLogout() {
-            if (isUnloading || isNavigating) return;
+            // KHÔNG logout nếu đang khởi tạo hoặc đang navigation
+            if (isUnloading || isNavigating || isInitializing) return;
             isUnloading = true;
             
             try {
@@ -335,6 +351,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Đang restore từ cache (reload), không logout
                 isNavigating = false;
             }
+            // Đánh dấu đang khởi tạo lại khi reload/restore
+            isInitializing = true;
+            if (initTimeout) clearTimeout(initTimeout);
+            initTimeout = setTimeout(function() {
+                isInitializing = false;
+            }, 2000);
+            
             // Khởi tạo lại tab
             announceTabOpen();
         });
@@ -352,15 +375,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Khởi tạo: thông báo tab này đang mở
+        // Khởi tạo: thông báo tab này đang mở NGAY LẬP TỨC
         announceTabOpen();
         
-        // Kiểm tra tab khác ngay khi load (sau một chút để đảm bảo DOM ready)
+        // Đánh dấu đang khởi tạo trong 3 giây đầu để tránh logout nhầm
+        initTimeout = setTimeout(function() {
+            isInitializing = false;
+        }, 3000);
+        
+        // Kiểm tra tab khác sau khi đã khởi tạo xong (tránh logout khi mới load)
         setTimeout(function() {
-            checkRemainingTabs();
-            // Ping các tab khác
+            // Vẫn còn trong thời gian khởi tạo, không check
+            if (isInitializing) {
+                return;
+            }
+            
+            // Ping các tab khác để xác nhận chúng còn sống
             channel.postMessage({type: 'ping', tabId: tabId});
-        }, 1000);
+            
+            // Kiểm tra tab khác sau một chút
+            setTimeout(function() {
+                checkRemainingTabs();
+            }, 500);
+        }, 3500); // Đợi sau khi khởi tạo xong
     }
 });
 
