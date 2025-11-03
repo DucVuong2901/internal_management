@@ -432,6 +432,20 @@ def notes():
     notes_list = file_storage.get_all_notes(category=category, search_query=search_query)
     categories = file_storage.get_note_categories()
     
+    # Thêm thông tin username cho mỗi note
+    for note in notes_list:
+        if note.user_id:
+            creator = user_storage.get_user_by_id(note.user_id)
+            note.creator_username = creator.username if creator else 'Không xác định'
+        else:
+            note.creator_username = 'Không xác định'
+        
+        if note.updated_by:
+            updater = user_storage.get_user_by_id(note.updated_by)
+            note.updater_username = updater.username if updater else 'Không xác định'
+        else:
+            note.updater_username = None
+    
     return render_template('notes.html', 
                          notes=notes_list,
                          categories=categories,
@@ -538,7 +552,8 @@ def edit_note(id):
                 id,
                 title=title,
                 content=content,
-                category=category
+                category=category,
+                user_id=current_user.id
             )
         except Exception as e:
             flash(f'Có lỗi xảy ra khi cập nhật ghi chú: {str(e)}', 'danger')

@@ -7,7 +7,7 @@
       "category": "password",
       "user_id": 1,
       "attachments": [],
-      "view_count": 5,
+      "view_count": 4,
       "created_at": "2025-10-30T15:01:13.113590",
       "updated_at": "2025-10-30T15:01:13.113595"
     },
@@ -73,7 +73,7 @@
       "category": "app",
       "user_id": 1,
       "attachments": [],
-      "view_count": 3,
+      "view_count": 4,
       "created_at": "2025-10-30T15:09:30.187440",
       "updated_at": "2025-10-31T06:38:37.372995"
     },
@@ -115,6 +115,127 @@
       "view_count": 1,
       "created_at": "2025-10-30T15:16:08.112822",
       "updated_at": "2025-10-30T15:16:08.112828"
+    },
+    {
+      "id": 12,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\"><b>931 PH – POOL HOUSE</b></span><!--EndFragment-->",
+      "filename": "12.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 2,
+      "created_at": "2025-10-31T19:00:54.879399",
+      "updated_at": "2025-10-31T19:01:40.592549"
+    },
+    {
+      "id": 13,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">932 RD – RND</span><!--EndFragment-->",
+      "filename": "13.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:02:20.313579",
+      "updated_at": "2025-10-31T19:02:20.313584"
+    },
+    {
+      "id": 14,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">905 CD – CREDIT</span><!--EndFragment-->",
+      "filename": "14.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:02:41.255831",
+      "updated_at": "2025-10-31T19:02:41.255837"
+    },
+    {
+      "id": 15,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">903 NV – B2C</span><!--EndFragment-->",
+      "filename": "15.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:02:58.765056",
+      "updated_at": "2025-10-31T19:02:58.765064"
+    },
+    {
+      "id": 16,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">928 ES – E-SPORTS</span><!--EndFragment-->",
+      "filename": "16.txt",
+      "category": "general",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:03:14.777293",
+      "updated_at": "2025-10-31T19:03:14.777300"
+    },
+    {
+      "id": 17,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">929 OS – OTHER SPORTS (Basketball &amp; Cricket)</span><!--EndFragment-->",
+      "filename": "17.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:03:38.453828",
+      "updated_at": "2025-10-31T19:03:38.453833"
+    },
+    {
+      "id": 18,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">933 SO – SOCCER</span><!--EndFragment-->",
+      "filename": "18.txt",
+      "category": "proxy",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:03:54.398864",
+      "updated_at": "2025-10-31T19:03:54.398869"
+    },
+    {
+      "id": 19,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">FusionCorelab (FSC)</span><!--EndFragment-->",
+      "filename": "19.txt",
+      "category": "networkdrive",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 4,
+      "created_at": "2025-10-31T19:05:50.644216",
+      "updated_at": "2025-10-31T19:06:49.581985"
+    },
+    {
+      "id": 20,
+      "title": "Note OPS",
+      "filename": "20.txt",
+      "category": "general",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 1,
+      "created_at": "2025-10-31T19:08:17.930405",
+      "updated_at": "2025-10-31T19:08:31.504566"
+    },
+    {
+      "id": 21,
+      "title": "Windows không vào được ổ đĩa mạng 195, 193",
+      "filename": "21.txt",
+      "category": "windows",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:09:39.321715",
+      "updated_at": "2025-10-31T19:09:39.321720"
+    },
+    {
+      "id": 22,
+      "title": "<!--StartFragment--><span style=\"color: oklch(0.2438 0.0269 95.7226); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;Noto Sans&quot;, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, &quot;Segoe UI Symbol&quot;, &quot;Noto Color Emoji&quot;; font-size: 16px; white-space-collapse: preserve; background-color: oklch(1 0 0);\">BYPASS ACCOUNT MICROSOFT SIGNIN</span><!--EndFragment-->",
+      "filename": "22.txt",
+      "category": "windows",
+      "user_id": 1,
+      "attachments": [],
+      "view_count": 0,
+      "created_at": "2025-10-31T19:12:06.993894",
+      "updated_at": "2025-10-31T19:12:06.993899"
     }
   ],
   "docs": [

@@ -125,7 +125,8 @@ class FileStorage:
                         attachments=note_meta.get('attachments', []),
                         view_count=note_meta.get('view_count', 0),
                         created_at=datetime.fromisoformat(note_meta['created_at']),
-                        updated_at=datetime.fromisoformat(note_meta.get('updated_at', note_meta['created_at']))
+                        updated_at=datetime.fromisoformat(note_meta.get('updated_at', note_meta['created_at'])),
+                        updated_by=note_meta.get('updated_by')
                     )
         return None
     
@@ -160,7 +161,8 @@ class FileStorage:
                     attachments=note_meta.get('attachments', []),
                     view_count=note_meta.get('view_count', 0),
                     created_at=datetime.fromisoformat(note_meta['created_at']),
-                    updated_at=datetime.fromisoformat(note_meta.get('updated_at', note_meta['created_at']))
+                    updated_at=datetime.fromisoformat(note_meta.get('updated_at', note_meta['created_at'])),
+                    updated_by=note_meta.get('updated_by')
                 )
                 notes.append(note)
         
@@ -178,7 +180,7 @@ class FileStorage:
                 return True
         return False
     
-    def update_note(self, note_id, title=None, content=None, category=None):
+    def update_note(self, note_id, title=None, content=None, category=None, user_id=None):
         """Cập nhật note"""
         metadata = self._load_metadata()
         updated = False
@@ -208,6 +210,8 @@ class FileStorage:
                 
                 if updated:
                     note_meta['updated_at'] = datetime.utcnow().isoformat()
+                    if user_id is not None:
+                        note_meta['updated_by'] = user_id
                     self._save_metadata(metadata)
                 break
         
@@ -525,7 +529,7 @@ class FileStorage:
 class Note:
     """Note class"""
     def __init__(self, id, title, content, category='general', user_id=None, 
-                 attachments=None, view_count=0, created_at=None, updated_at=None):
+                 attachments=None, view_count=0, created_at=None, updated_at=None, updated_by=None):
         self.id = id
         self.title = title
         self.content = content
@@ -535,6 +539,7 @@ class Note:
         self.view_count = view_count
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or self.created_at
+        self.updated_by = updated_by
 
 
 class Document:
