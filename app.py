@@ -174,6 +174,78 @@ def save_categories(categories):
     with open(categories_file, 'w', encoding='utf-8') as f:
         json.dump(categories, f, ensure_ascii=False, indent=2)
 
+def process_pasted_images_in_content(note_id, content):
+    """Xử lý các hình ảnh đã paste trong nội dung, chuyển thành attachment"""
+    import re
+    import uuid
+    from werkzeug.utils import secure_filename
+    
+    # Tìm tất cả các img tag có src chứa /api/pasted-image/
+    pattern = r'<img[^>]+src=["\']([^"\']*\/api\/pasted-image\/([^"\']+))["\'][^>]*>'
+    matches = re.finditer(pattern, content)
+    
+    updated_content = content
+    
+    for match in matches:
+        full_url = match.group(1)
+        temp_filename = match.group(2)
+        
+        # Kiểm tra file có tồn tại không
+        temp_path = os.path.join(file_storage.notes_uploads_dir, temp_filename)
+        if not os.path.exists(temp_path):
+            continue
+        
+        # Tạo tên file mới cho attachment
+        file_ext = os.path.splitext(temp_filename)[1]
+        unique_filename = f"{note_id}_{uuid.uuid4().hex[:8]}{file_ext}"
+        attachment_path = os.path.join(file_storage.notes_uploads_dir, unique_filename)
+        
+        # Tạo tên file gốc (bỏ prefix "pasted_" và timestamp)
+        original_name = f"image{file_ext}"
+        if temp_filename.startswith('pasted_'):
+            # Có thể lấy tên gốc từ temp_filename nếu có
+            parts = temp_filename.split('_')
+            if len(parts) > 3:
+                # Có thể có tên gốc sau user_id
+                original_name = '_'.join(parts[3:]) if len(parts) > 3 else f"image{file_ext}"
+        
+        try:
+            # Copy file từ temp location sang attachment location
+            shutil.copy2(temp_path, attachment_path)
+            
+            # Thêm vào metadata của note
+            metadata = file_storage._load_metadata()
+            for note_meta in metadata.get('notes', []):
+                if note_meta['id'] == int(note_id):
+                    if 'attachments' not in note_meta:
+                        note_meta['attachments'] = []
+                    
+                    note_meta['attachments'].append({
+                        'filename': unique_filename,
+                        'original_filename': secure_filename(original_name),
+                        'uploaded_at': datetime.utcnow().isoformat()
+                    })
+                    note_meta['updated_at'] = datetime.utcnow().isoformat()
+                    file_storage._save_metadata(metadata)
+                    
+                    # Tạo URL mới cho attachment
+                    new_url = url_for('download_attachment', note_id=note_id, filename=unique_filename)
+                    # Thay thế URL cũ bằng URL mới trong content
+                    updated_content = updated_content.replace(full_url, new_url)
+                    
+                    # Xóa file tạm sau khi đã chuyển thành attachment
+                    try:
+                        os.remove(temp_path)
+                    except:
+                        pass
+                    break
+                    
+        except Exception as e:
+            print(f"Lỗi khi xử lý pasted image {temp_filename}: {str(e)}")
+            continue
+    
+    return updated_content
+
 # Decorators
 def admin_required(f):
     @wraps(f)
@@ -492,6 +564,8 @@ def new_note():
                         if file_storage.add_note_attachment(note.id, file):
                             pass  # File đã được lưu
             
+            # Không cần xử lý pasted images nữa vì chúng đã được thêm vào attachments
+            
             # Log tạo mới với thông tin chi tiết
             save_edit_log({
                 'item_type': 'note',
@@ -567,6 +641,8 @@ def edit_note(id):
                     if file and file.filename:
                         if file_storage.add_note_attachment(id, file):
                             pass  # File đã được lưu
+            
+            # Không cần xử lý pasted images nữa vì chúng đã được thêm vào attachments
             
             # Lấy note đã update để lấy updated_at (thời điểm sửa file)
             updated_note = file_storage.get_note(id)
@@ -1017,6 +1093,105 @@ def api_check_session():
     """API endpoint để kiểm tra session còn hiệu lực không"""
     # Nếu đến được đây nghĩa là session còn hợp lệ (vì đã pass @login_required)
     return jsonify({'valid': True, 'username': current_user.username}), 200
+
+@app.route('/api/upload-pasted-image', methods=['POST'])
+@login_required
+def upload_pasted_image():
+    """API endpoint để upload hình ảnh từ clipboard paste"""
+    try:
+        # Kiểm tra có file trong request không
+        if 'image' not in request.files:
+            return jsonify({'error': 'Không có hình ảnh'}), 400
+        
+        file = request.files['image']
+        
+        # Kiểm tra file có tồn tại và có filename không
+        if not file or not file.filename:
+            # Nếu không có filename, có thể là dữ liệu base64
+            # Kiểm tra xem có dữ liệu trong request form không
+            if 'data' in request.form:
+                # Xử lý base64 data
+                import base64
+                data = request.form.get('data')
+                if not data or not data.startswith('data:image'):
+                    return jsonify({'error': 'Dữ liệu hình ảnh không hợp lệ'}), 400
+                
+                # Parse base64 data
+                header, encoded = data.split(',', 1)
+                image_data = base64.b64decode(encoded)
+                
+                # Xác định extension từ header
+                if 'png' in header:
+                    ext = 'png'
+                elif 'jpeg' in header or 'jpg' in header:
+                    ext = 'jpg'
+                elif 'gif' in header:
+                    ext = 'gif'
+                elif 'webp' in header:
+                    ext = 'webp'
+                else:
+                    ext = 'png'
+                
+                # Tạo tên file tạm
+                filename = f"pasted_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{current_user.id}.{ext}"
+                temp_path = os.path.join(file_storage.notes_uploads_dir, filename)
+                
+                # Lưu file
+                with open(temp_path, 'wb') as f:
+                    f.write(image_data)
+                
+                # Tạo URL tạm để trả về
+                image_url = url_for('download_pasted_image', filename=filename)
+                return jsonify({
+                    'success': True,
+                    'url': image_url,
+                    'filename': filename
+                })
+            else:
+                return jsonify({'error': 'Không có dữ liệu hình ảnh'}), 400
+        
+        # Kiểm tra file có phải là hình ảnh không
+        if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
+            return jsonify({'error': 'File phải là hình ảnh'}), 400
+        
+        # Lưu file vào thư mục uploads tạm
+        filename = secure_filename(file.filename)
+        # Thêm timestamp và user_id để tránh trùng tên
+        name, ext = os.path.splitext(filename)
+        filename = f"pasted_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{current_user.id}_{name}{ext}"
+        filepath = os.path.join(file_storage.notes_uploads_dir, filename)
+        file.save(filepath)
+        
+        # Tạo URL để trả về
+        image_url = url_for('download_pasted_image', filename=filename)
+        return jsonify({
+            'success': True,
+            'url': image_url,
+            'filename': filename
+        })
+    except Exception as e:
+        return jsonify({'error': f'Lỗi khi upload: {str(e)}'}), 500
+
+@app.route('/api/pasted-image/<filename>')
+@login_required
+def download_pasted_image(filename):
+    """Download hình ảnh đã paste (tạm thời)"""
+    # Kiểm tra file có tồn tại không
+    filepath = os.path.join(file_storage.notes_uploads_dir, filename)
+    if not os.path.exists(filepath):
+        flash('File không tồn tại!', 'danger')
+        return redirect(url_for('notes'))
+    
+    # Kiểm tra file có phải là hình ảnh không
+    if not filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
+        flash('File không phải là hình ảnh!', 'danger')
+        return redirect(url_for('notes'))
+    
+    return send_from_directory(
+        file_storage.notes_uploads_dir,
+        filename,
+        as_attachment=False
+    )
 
 # User Management Routes (Admin only)
 @app.route('/admin/users')

@@ -183,30 +183,95 @@ function formatTextColor(color) {
 function handlePaste(e) {
     e.preventDefault();
     const clipboardData = e.clipboardData || window.clipboardData;
+    const editor = document.getElementById('editor');
     
-    // Ưu tiên lấy HTML để giữ định dạng
-    let html = clipboardData.getData('text/html');
+    // Kiểm tra xem có hình ảnh trong clipboard không
+    const items = clipboardData.items;
+    let imageFound = false;
     
-    if (html) {
-        // Nếu có HTML, insert trực tiếp
-        document.execCommand('insertHTML', false, html);
-    } else {
-        // Nếu không có HTML, lấy text và chuyển đổi xuống dòng
-        let text = clipboardData.getData('text/plain');
-        
-        // Chuyển đổi các ký tự xuống dòng thành <br>
-        // Giữ nhiều dòng trống thành <br><br>
-        text = text
-            .replace(/\r\n/g, '\n')  // Chuẩn hóa Windows line breaks
-            .replace(/\r/g, '\n')    // Chuẩn hóa Mac line breaks
-            .replace(/\n\n+/g, '\n\n') // Giữ tối đa 2 dòng trống liên tiếp
-            .replace(/\n/g, '<br>');   // Chuyển đổi \n thành <br>
-        
-        document.execCommand('insertHTML', false, text);
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            imageFound = true;
+            const file = items[i].getAsFile();
+            
+            // Tạo tên file nếu chưa có
+            if (!file.name) {
+                const timestamp = Date.now();
+                const ext = file.type.split('/')[1] || 'png';
+                file.name = `pasted_image_${timestamp}.${ext}`;
+            }
+            
+            // Thêm file vào danh sách đính kèm (sử dụng biến selectedFiles từ file upload handler)
+            // Tìm file input và trigger change event
+            const fileInput = document.getElementById('attachments');
+            if (fileInput && typeof window.selectedFiles !== 'undefined') {
+                // Kiểm tra file đã tồn tại chưa (theo tên và kích thước)
+                const exists = window.selectedFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!exists) {
+                    window.selectedFiles.push(file);
+                    
+                    // Cập nhật file input
+                    const dt = new DataTransfer();
+                    window.selectedFiles.forEach(f => {
+                        dt.items.add(f);
+                    });
+                    fileInput.files = dt.files;
+                    
+                    // Trigger render preview
+                    if (typeof window.renderFilePreview === 'function') {
+                        window.renderFilePreview();
+                    } else {
+                        // Fallback: trigger change event
+                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    
+                    // Hiển thị thông báo
+                    const notification = document.createElement('div');
+                    notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+                    notification.style.zIndex = '9999';
+                    notification.innerHTML = `
+                        <i class="bi bi-check-circle"></i> Đã thêm hình ảnh vào danh sách đính kèm
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(notification);
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 3000);
+                }
+            }
+            
+            break;
+        }
     }
     
-    // Focus lại editor sau khi paste
-    document.getElementById('editor').focus();
+    // Nếu không có hình ảnh, xử lý paste text như bình thường
+    if (!imageFound) {
+        // Ưu tiên lấy HTML để giữ định dạng
+        let html = clipboardData.getData('text/html');
+        
+        if (html) {
+            // Nếu có HTML, insert trực tiếp
+            document.execCommand('insertHTML', false, html);
+        } else {
+            // Nếu không có HTML, lấy text và chuyển đổi xuống dòng
+            let text = clipboardData.getData('text/plain');
+            
+            // Chuyển đổi các ký tự xuống dòng thành <br>
+            // Giữ nhiều dòng trống thành <br><br>
+            text = text
+                .replace(/\r\n/g, '\n')  // Chuẩn hóa Windows line breaks
+                .replace(/\r/g, '\n')    // Chuẩn hóa Mac line breaks
+                .replace(/\n\n+/g, '\n\n') // Giữ tối đa 2 dòng trống liên tiếp
+                .replace(/\n/g, '<br>');   // Chuyển đổi \n thành <br>
+            
+            document.execCommand('insertHTML', false, text);
+        }
+        
+        // Focus lại editor sau khi paste
+        editor.focus();
+    }
 }
 
 // Functions for title editor
@@ -297,6 +362,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileList = document.getElementById('fileList');
     let selectedFiles = [];
     
+    // Expose selectedFiles để handlePaste có thể sử dụng
+    window.selectedFiles = selectedFiles;
+    
     function renderFilePreview() {
         fileList.innerHTML = '';
         
@@ -384,6 +452,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedFiles = newFiles;
             }
             
+            // Update global reference
+            window.selectedFiles = selectedFiles;
+            
             // Update file input
             const dt = new DataTransfer();
             selectedFiles.forEach(file => {
@@ -394,6 +465,9 @@ document.addEventListener('DOMContentLoaded', function() {
             renderFilePreview();
         });
         
+        // Expose renderFilePreview sau khi đã định nghĩa
+        window.renderFilePreview = renderFilePreview;
+        
         // Handle remove file button
         fileList.addEventListener('click', function(e) {
             if (e.target.closest('.remove-file-btn')) {
@@ -403,6 +477,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (fileIndex >= 0 && fileIndex < selectedFiles.length) {
                     // Remove from selectedFiles array
                     selectedFiles.splice(fileIndex, 1);
+                    
+                    // Update global reference
+                    window.selectedFiles = selectedFiles;
                     
                     // Update file input
                     const dt = new DataTransfer();
