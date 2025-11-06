@@ -295,6 +295,8 @@ def login():
             login_user(user, remember=False)
             # KHÔNG đặt permanent - session chỉ tồn tại trong phiên trình duyệt
             session.permanent = False
+            # Đảm bảo session được lưu ngay lập tức
+            session.modified = True
             next_page = request.args.get('next')
             flash(f'Chào mừng, {user.username}!', 'success')
             response = redirect(next_page) if next_page else redirect(url_for('dashboard'))
@@ -370,21 +372,14 @@ def change_password():
 
 @app.before_request
 def check_session_validity():
-    """Kiểm tra session còn hiệu lực không - force logout nếu cần"""
-    # Kiểm tra xem có header X-Requested-With để biết request từ đâu
-    # Nếu session không có key quan trọng, có thể là session cũ
+    """Đảm bảo session không permanent (chỉ tồn tại trong phiên trình duyệt)"""
+    # Bỏ qua cho static files và login route
+    if request.endpoint in ['login', 'static'] or request.path.startswith('/static/'):
+        return None
     
+    # Đảm bảo session không permanent để tự động logout khi đóng tab
     if current_user.is_authenticated:
-        # Đảm bảo session không permanent
         session.permanent = False
-        
-        # Kiểm tra nếu session không có thông tin user, logout
-        if '_user_id' not in session and not hasattr(session, '_user_id'):
-            # Session không hợp lệ, logout ngay
-            logout_user()
-            session.clear()
-            flash('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'info')
-            return redirect(url_for('login'))
 
 @app.after_request
 def set_no_cache_headers(response):
