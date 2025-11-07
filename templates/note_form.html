@@ -548,13 +548,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-3">
                         <label for="category" class="form-label">Danh mục</label>
                         <select class="form-select" id="category" name="category" required>
-                            {% for cat in categories %}
-                                <option value="{{ cat }}" {% if (note and note.category == cat) or (not note and cat == 'general') %}selected{% endif %}>
-                                    {{ cat }}
-                                </option>
-                            {% endfor %}
+                            {% if categories_dict %}
+                                {# Hiển thị theo cấu trúc phân cấp #}
+                                {% for cat_name, cat_data in categories_dict.items() %}
+                                    {% if not cat_data.parent %}
+                                        {# Danh mục gốc #}
+                                        <option value="{{ cat_name }}" {% if (note and note.category == cat_name) or (not note and cat_name == 'general') %}selected{% endif %}>
+                                            📁 {{ cat_name }}
+                                        </option>
+                                        {# Danh mục con #}
+                                        {% if cat_data.children %}
+                                            {% for child_name in cat_data.children %}
+                                                <option value="{{ child_name }}" {% if note and note.category == child_name %}selected{% endif %}>
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;└─ {{ child_name }}
+                                                </option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {# Fallback cho format cũ #}
+                                {% for cat in categories %}
+                                    <option value="{{ cat }}" {% if (note and note.category == cat) or (not note and cat == 'general') %}selected{% endif %}>
+                                        {{ cat }}
+                                    </option>
+                                {% endfor %}
+                            {% endif %}
                         </select>
-                        <small class="form-text text-muted">Chọn danh mục từ danh sách có sẵn</small>
+                        <small class="form-text text-muted">Danh mục con sẽ hiển thị thụt vào bên dưới danh mục cha</small>
                     </div>
                     <div class="mb-3">
                         <label for="content" class="form-label">Nội dung</label>

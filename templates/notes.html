@@ -21,18 +21,60 @@
     <div class="card-body">
         <!-- Category Tabs -->
         <div class="mb-3">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <div class="d-flex flex-wrap align-items-start gap-2 mb-3">
                 <span class="text-muted me-2"><strong>Danh mục:</strong></span>
                 <a href="{{ url_for('notes') }}" 
                    class="btn btn-sm {% if current_category == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                     Tất cả
                 </a>
-                {% for cat in categories %}
-                <a href="{{ url_for('notes', category=cat) }}" 
-                   class="btn btn-sm {% if current_category == cat %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                    {{ cat }}
-                </a>
-                {% endfor %}
+                {% if categories_dict %}
+                    {% for cat_name, cat_data in categories_dict.items() %}
+                        {% if not cat_data.parent %}
+                            {# Danh mục gốc #}
+                            {% if cat_data.children %}
+                                {# Có danh mục con - dùng dropdown #}
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('notes', category=cat_name) }}" 
+                                       class="btn btn-sm {% if current_category == cat_name or current_category in cat_data.children %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                        📁 {{ cat_data.get('display_name', cat_data.get('name', cat_name)) }}
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm {% if current_category == cat_name or current_category in cat_data.children %}btn-primary{% else %}btn-outline-primary{% endif %} dropdown-toggle dropdown-toggle-split" 
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% for child_key in cat_data.children %}
+                                            {% if child_key in categories_dict %}
+                                                {% set child_data = categories_dict[child_key] %}
+                                                <li>
+                                                    <a class="dropdown-item {% if current_category == child_key %}active{% endif %}" 
+                                                       href="{{ url_for('notes', category=child_key) }}">
+                                                        └─ {{ child_data.get('display_name', child_data.get('name', child_key)) }}
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% else %}
+                                {# Không có danh mục con - button đơn giản #}
+                                <a href="{{ url_for('notes', category=cat_name) }}" 
+                                   class="btn btn-sm {% if current_category == cat_name %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    📂 {{ cat_data.get('display_name', cat_data.get('name', cat_name)) }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {# Fallback cho format cũ #}
+                    {% for cat in categories %}
+                    <a href="{{ url_for('notes', category=cat) }}" 
+                       class="btn btn-sm {% if current_category == cat %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        {{ cat }}
+                    </a>
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
         

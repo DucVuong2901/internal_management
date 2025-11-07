@@ -23,7 +23,29 @@
                         <label for="category" class="form-label">Tên danh mục</label>
                         <input type="text" class="form-control" id="category" name="category" 
                                placeholder="ví dụ: công việc, cá nhân, học tập..." required>
-                        <small class="form-text text-muted">Tên danh mục sẽ được chuyển thành chữ thường tự động</small>
+                        <small class="form-text text-muted">
+                            Tên danh mục sẽ được chuyển thành chữ thường tự động.<br>
+                            <strong class="text-info">💡 Lưu ý:</strong> Có thể tạo danh mục con cùng tên nhưng khác danh mục cha (ví dụ: "hr" trong "mail" và "hr" trong "công việc")
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parent" class="form-label">Danh mục cha (tùy chọn)</label>
+                        <select class="form-select" id="parent" name="parent">
+                            <option value="">-- Không có (danh mục gốc) --</option>
+                            {% for cat_name, cat_data in categories.items() %}
+                                {% if not cat_data.parent %}
+                                    {# Danh mục gốc #}
+                                    <option value="{{ cat_name }}">📁 {{ cat_name }}</option>
+                                    {# Danh mục con của danh mục này #}
+                                    {% if cat_data.children %}
+                                        {% for child_name in cat_data.children %}
+                                            <option value="{{ child_name }}">&nbsp;&nbsp;&nbsp;&nbsp;└─ {{ child_name }}</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Chọn danh mục cha để tạo danh mục con</small>
                     </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-plus-circle"></i> Thêm danh mục
@@ -36,32 +58,74 @@
     <!-- Danh sách danh mục -->
     <div class="col-md-6 mb-4">
         <div class="card">
-            <div class="card-header bg-success text-white">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-list"></i> Danh sách danh mục</h5>
+                <form method="post" action="{{ url_for('fix_orphan_categories') }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-warning" title="Sửa các danh mục con bị lỗi hiển thị">
+                        <i class="bi bi-wrench"></i> Sửa lỗi hiển thị
+                    </button>
+                </form>
             </div>
             <div class="card-body">
                 {% if categories %}
                 <div class="list-group">
-                    {% for cat in categories %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            <i class="bi bi-tag"></i> <strong>{{ cat }}</strong>
-                            {% if cat == 'general' %}
-                            <span class="badge bg-info ms-2">Mặc định</span>
+                    {% for cat_name, cat_data in categories.items() %}
+                        {% if not cat_data.parent %}
+                        <!-- Danh mục gốc -->
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="flex-grow-1" style="cursor: pointer;" onclick="toggleChildren('{{ cat_name }}')">
+                                    {% if cat_data.children %}
+                                    <i class="bi bi-chevron-right toggle-icon" id="icon-{{ cat_name }}"></i>
+                                    {% else %}
+                                    <i class="bi bi-folder"></i>
+                                    {% endif %}
+                                    <strong>{{ cat_data.get('display_name', cat_data.get('name', cat_name)) }}</strong>
+                                    {% if cat_name == 'general' %}
+                                    <span class="badge bg-info ms-2">Mặc định</span>
+                                    {% endif %}
+                                    {% if cat_data.children %}
+                                    <span class="badge bg-secondary ms-2">{{ cat_data.children|length }} danh mục con</span>
+                                    {% endif %}
+                                </span>
+                                {% if cat_name != 'general' %}
+                                <form method="post" action="{{ url_for('delete_category') }}" 
+                                      onsubmit="return confirm('Bạn có chắc muốn xóa danh mục \"{{ cat_name }}\"?');" class="d-inline">
+                                    <input type="hidden" name="category" value="{{ cat_name }}">
+                                    <button type="submit" class="btn btn-sm btn-danger" {% if cat_data.children %}disabled title="Phải xóa danh mục con trước"{% endif %}>
+                                        <i class="bi bi-trash"></i> Xóa
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">Không thể xóa</span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Danh mục con (ẩn mặc định) -->
+                            {% if cat_data.children %}
+                            <div class="ms-4 mt-2" id="children-{{ cat_name }}" style="display: none;">
+                                {% for child_key in cat_data.children %}
+                                    {% if child_key in categories %}
+                                    {% set child_data = categories[child_key] %}
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-top">
+                                        <span class="text-muted">
+                                            <i class="bi bi-arrow-return-right"></i> 
+                                            <i class="bi bi-tag"></i> {{ child_data.get('display_name', child_data.get('name', child_key)) }}
+                                        </span>
+                                        <form method="post" action="{{ url_for('delete_category') }}" 
+                                              onsubmit="return confirm('Bạn có chắc muốn xóa danh mục con?');" class="d-inline">
+                                            <input type="hidden" name="category" value="{{ child_key }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
                             {% endif %}
-                        </span>
-                        {% if cat != 'general' %}
-                        <form method="post" action="{{ url_for('delete_category') }}" 
-                              onsubmit="return confirm('Bạn có chắc muốn xóa danh mục \"{{ cat }}\"? Tất cả ghi chú và tài liệu thuộc danh mục này sẽ được chuyển về danh mục "general".');" class="d-inline">
-                            <input type="hidden" name="category" value="{{ cat }}">
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="bi bi-trash"></i> Xóa
-                            </button>
-                        </form>
-                        {% else %}
-                        <span class="text-muted small">Không thể xóa</span>
+                        </div>
                         {% endif %}
-                    </div>
                     {% endfor %}
                 </div>
                 {% else %}
@@ -80,11 +144,41 @@
             <i class="bi bi-exclamation-triangle"></i> <strong>Lưu ý:</strong>
             <ul class="mb-0 mt-2">
                 <li>Danh mục "general" là danh mục mặc định và không thể xóa</li>
+                <li><strong>💡 Danh mục con cùng tên:</strong> Có thể tạo danh mục con cùng tên nhưng khác danh mục cha (ví dụ: "hr" trong "mail" và "hr" trong "công việc")</li>
+                <li><strong>Danh mục gốc:</strong> Tên danh mục gốc phải duy nhất (không được trùng với danh mục gốc khác)</li>
+                <li><strong>Click vào danh mục cha</strong> (icon ▶) để xem/ẩn danh mục con bên trong</li>
+                <li><strong>Nếu danh mục con hiển thị sai:</strong> Click nút "Sửa lỗi hiển thị" ở góc phải để tự động sửa</li>
+                <li>Không thể xóa danh mục cha nếu còn danh mục con. Phải xóa danh mục con trước</li>
                 <li>Khi xóa một danh mục, tất cả ghi chú và tài liệu thuộc danh mục đó sẽ được tự động chuyển về danh mục "general"</li>
-                <li>User chỉ có thể chọn từ các danh mục có trong danh sách này khi tạo/chỉnh sửa ghi chú hoặc tài liệu</li>
             </ul>
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+function toggleChildren(categoryName) {
+    const childrenDiv = document.getElementById('children-' + categoryName);
+    const icon = document.getElementById('icon-' + categoryName);
+    
+    if (childrenDiv) {
+        if (childrenDiv.style.display === 'none') {
+            // Expand
+            childrenDiv.style.display = 'block';
+            if (icon) {
+                icon.classList.remove('bi-chevron-right');
+                icon.classList.add('bi-chevron-down');
+            }
+        } else {
+            // Collapse
+            childrenDiv.style.display = 'none';
+            if (icon) {
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-right');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

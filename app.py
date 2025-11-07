@@ -207,23 +207,77 @@ def save_edit_log(log_data):
         cleanup_old_logs(30)
 
 def load_categories():
-    """Load categories từ file JSON"""
+    """Load categories từ file JSON - Hỗ trợ danh mục con"""
     if not os.path.exists(categories_file):
-        # Tạo categories mặc định
-        default_categories = ['general', 'công việc', 'cá nhân', 'học tập', 'quan trọng', 'hướng dẫn']
+        # Tạo categories mặc định với cấu trúc hierarchical
+        default_categories = {
+            'general': {'name': 'general', 'parent': None, 'children': []},
+            'công việc': {'name': 'công việc', 'parent': None, 'children': []},
+            'cá nhân': {'name': 'cá nhân', 'parent': None, 'children': []},
+            'học tập': {'name': 'học tập', 'parent': None, 'children': []},
+            'quan trọng': {'name': 'quan trọng', 'parent': None, 'children': []},
+            'hướng dẫn': {'name': 'hướng dẫn', 'parent': None, 'children': []}
+        }
         save_categories(default_categories)
         return default_categories
     try:
         with open(categories_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Backward compatibility: nếu là list cũ, convert sang dict mới
+            if isinstance(data, list):
+                new_data = {}
+                for cat in data:
+                    new_data[cat] = {'name': cat, 'parent': None, 'children': []}
+                save_categories(new_data)
+                return new_data
+            return data
     except:
-        return ['general']
+        return {'general': {'name': 'general', 'parent': None, 'children': []}}
 
 def save_categories(categories):
     """Lưu categories vào file JSON"""
     os.makedirs(os.path.dirname(categories_file), exist_ok=True)
     with open(categories_file, 'w', encoding='utf-8') as f:
         json.dump(categories, f, ensure_ascii=False, indent=2)
+
+def get_category_full_path(category_key, categories=None):
+    """Lấy đường dẫn đầy đủ của category (parent > child)"""
+    if categories is None:
+        categories = load_categories()
+    
+    if category_key not in categories:
+        return category_key
+    
+    cat = categories[category_key]
+    display_name = cat.get('display_name', cat.get('name', category_key))
+    
+    if cat.get('parent'):
+        parent_path = get_category_full_path(cat['parent'], categories)
+        return f"{parent_path} > {display_name}"
+    return display_name
+
+def get_all_category_names(categories=None):
+    """Lấy tất cả tên categories dưới dạng list (để backward compatibility)"""
+    if categories is None:
+        categories = load_categories()
+    return list(categories.keys())
+
+def get_root_categories(categories=None):
+    """Lấy danh sách categories gốc (không có parent)"""
+    if categories is None:
+        categories = load_categories()
+    return {k: v for k, v in categories.items() if not v.get('parent')}
+
+def get_child_categories(parent_name, categories=None):
+    """Lấy danh sách categories con của một parent"""
+    if categories is None:
+        categories = load_categories()
+    
+    if parent_name not in categories:
+        return {}
+    
+    children = categories[parent_name].get('children', [])
+    return {k: categories[k] for k in children if k in categories}
 
 def process_pasted_images_in_content(note_id, content):
     """Xử lý các hình ảnh đã paste trong nội dung, chuyển thành attachment"""
@@ -470,7 +524,7 @@ def dashboard():
     docs_count = len(all_docs)
     
     # Lấy tất cả categories và đếm số notes trong mỗi category
-    categories = load_categories()
+    categories_dict = load_categories()
     category_stats = {}
     
     for note in all_notes:
@@ -487,16 +541,45 @@ def dashboard():
             category_stats[cat]['recent_date'] = note.updated_at
             category_stats[cat]['recent_note'] = note
     
-    # Chuyển thành list để dễ render
+    # Chỉ lấy danh mục gốc (không có parent) và tính tổng count bao gồm cả children
     categories_with_stats = []
-    for cat in categories:
-        stats = category_stats.get(cat, {'count': 0, 'recent_note': None, 'recent_date': None})
-        categories_with_stats.append({
-            'name': cat,
-            'count': stats['count'],
-            'recent_note': stats['recent_note'],
-            'recent_date': stats['recent_date']
-        })
+    for cat_name, cat_data in categories_dict.items():
+        if not cat_data.get('parent'):  # Chỉ danh mục gốc
+            # Tính tổng count của danh mục gốc + tất cả children
+            total_count = category_stats.get(cat_name, {}).get('count', 0)
+            recent_note = category_stats.get(cat_name, {}).get('recent_note')
+            recent_date = category_stats.get(cat_name, {}).get('recent_date')
+            
+            # Thêm count từ children
+            children_stats = []
+            if cat_data.get('children'):
+                for child_name in cat_data['children']:
+                    child_count = category_stats.get(child_name, {}).get('count', 0)
+                    total_count += child_count
+                    
+                    # Lưu stats của children để hiển thị
+                    if child_count > 0:
+                        children_stats.append({
+                            'name': child_name,
+                            'count': child_count,
+                            'recent_note': category_stats.get(child_name, {}).get('recent_note'),
+                            'recent_date': category_stats.get(child_name, {}).get('recent_date')
+                        })
+                    
+                    # Cập nhật recent_note nếu child có note mới hơn
+                    child_date = category_stats.get(child_name, {}).get('recent_date')
+                    if child_date and (not recent_date or child_date > recent_date):
+                        recent_date = child_date
+                        recent_note = category_stats.get(child_name, {}).get('recent_note')
+            
+            categories_with_stats.append({
+                'name': cat_name,
+                'count': total_count,
+                'recent_note': recent_note,
+                'recent_date': recent_date,
+                'children': children_stats,
+                'has_children': len(children_stats) > 0
+            })
     
     # Sắp xếp theo số lượng giảm dần
     categories_with_stats.sort(key=lambda x: x['count'], reverse=True)
@@ -504,7 +587,8 @@ def dashboard():
     return render_template('dashboard.html', 
                          notes_count=notes_count,
                          docs_count=docs_count,
-                         categories_with_stats=categories_with_stats)
+                         categories_with_stats=categories_with_stats,
+                         categories_dict=categories_dict)
 
 @app.route('/notes/<int:id>/view')
 @login_required
@@ -541,6 +625,51 @@ def add_attachment_to_note(id):
     
     return redirect(url_for('view_note', id=id))
 
+@app.route('/category/<category_name>')
+@login_required
+def view_category(category_name):
+    """Xem chi tiết một danh mục và các danh mục con của nó"""
+    categories_dict = load_categories()
+    
+    if category_name not in categories_dict:
+        flash('Danh mục không tồn tại!', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    cat_data = categories_dict[category_name]
+    
+    # Lấy thống kê cho danh mục này
+    all_notes = file_storage.get_all_notes()
+    
+    # Count notes trong danh mục này
+    parent_count = sum(1 for note in all_notes if note.category == category_name)
+    
+    # Lấy thống kê cho các danh mục con
+    children_stats = []
+    if cat_data.get('children'):
+        for child_name in cat_data['children']:
+            child_count = sum(1 for note in all_notes if note.category == child_name)
+            recent_note = None
+            recent_date = None
+            
+            for note in all_notes:
+                if note.category == child_name:
+                    if not recent_date or note.updated_at > recent_date:
+                        recent_date = note.updated_at
+                        recent_note = note
+            
+            children_stats.append({
+                'name': child_name,
+                'count': child_count,
+                'recent_note': recent_note,
+                'recent_date': recent_date
+            })
+    
+    return render_template('view_category.html',
+                         category_name=category_name,
+                         category_data=cat_data,
+                         parent_count=parent_count,
+                         children_stats=children_stats)
+
 @app.route('/notes')
 @login_required
 def notes():
@@ -549,6 +678,7 @@ def notes():
     
     notes_list = file_storage.get_all_notes(category=category, search_query=search_query)
     categories = file_storage.get_note_categories()
+    categories_dict = load_categories()
     
     # Thêm thông tin username cho mỗi note
     for note in notes_list:
@@ -567,13 +697,15 @@ def notes():
     return render_template('notes.html', 
                          notes=notes_list,
                          categories=categories,
+                         categories_dict=categories_dict,
                          current_category=category,
                          search_query=search_query)
 
 @app.route('/notes/new', methods=['GET', 'POST'])
 @can_create_required
 def new_note():
-    categories = load_categories()
+    categories_dict = load_categories()
+    categories = get_all_category_names(categories_dict)
     
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -584,7 +716,7 @@ def new_note():
         title_text_only = re.sub(r'<[^>]+>', '', title).strip()
         if not title_text_only:
             flash('Tiêu đề không được để trống!', 'danger')
-            return render_template('note_form.html', categories=categories)
+            return render_template('note_form.html', categories=categories, categories_dict=categories_dict)
         
         # Kiểm tra category có trong danh sách được phép
         if category not in categories:
@@ -600,7 +732,7 @@ def new_note():
             )
         except Exception as e:
             flash(f'Có lỗi xảy ra khi tạo ghi chú: {str(e)}', 'danger')
-            return render_template('note_form.html', categories=categories)
+            return render_template('note_form.html', categories=categories, categories_dict=categories_dict)
         if note:
             # Xử lý file đính kèm
             if 'attachments' in request.files:
@@ -628,7 +760,7 @@ def new_note():
             return redirect(url_for('notes'))
         else:
             flash('Có lỗi xảy ra khi tạo ghi chú!', 'danger')
-    return render_template('note_form.html', categories=categories)
+    return render_template('note_form.html', categories=categories, categories_dict=categories_dict)
 
 @app.route('/notes/<int:id>/edit', methods=['GET', 'POST'])
 @can_edit_required
@@ -638,7 +770,8 @@ def edit_note(id):
         flash('Ghi chú không tồn tại!', 'danger')
         return redirect(url_for('notes'))
     
-    categories = load_categories()
+    categories_dict = load_categories()
+    categories = get_all_category_names(categories_dict)
     
     # User và admin có thể chỉnh sửa tất cả ghi chú (không kiểm tra ownership)
     
@@ -653,7 +786,7 @@ def edit_note(id):
         # Validation
         if not title:
             flash('Tiêu đề không được để trống!', 'danger')
-            return render_template('note_form.html', note=note, categories=categories)
+            return render_template('note_form.html', note=note, categories=categories, categories_dict=categories_dict)
         
         # Kiểm tra category có trong danh sách được phép
         if category not in categories:
@@ -677,7 +810,7 @@ def edit_note(id):
             )
         except Exception as e:
             flash(f'Có lỗi xảy ra khi cập nhật ghi chú: {str(e)}', 'danger')
-            return render_template('note_form.html', note=note, categories=categories)
+            return render_template('note_form.html', note=note, categories=categories, categories_dict=categories_dict)
         
         if success:
             # Xử lý file đính kèm mới
@@ -708,7 +841,7 @@ def edit_note(id):
         else:
             flash('Có lỗi xảy ra khi cập nhật!', 'danger')
     
-    return render_template('note_form.html', note=note, categories=categories)
+    return render_template('note_form.html', note=note, categories=categories, categories_dict=categories_dict)
 
 @app.route('/notes/<int:id>/delete', methods=['POST'])
 @admin_required
@@ -833,10 +966,12 @@ def docs():
     
     docs_list = file_storage.get_all_docs(category=category, search_query=search_query)
     categories = file_storage.get_doc_categories()
+    categories_dict = load_categories()
     
     return render_template('docs.html',
                          docs=docs_list,
                          categories=categories,
+                         categories_dict=categories_dict,
                          current_category=category,
                          search_query=search_query)
 
@@ -1368,26 +1503,110 @@ def manage_categories():
 @admin_required
 def add_category():
     category = request.form.get('category', '').strip().lower()
-    if category:
-        categories = load_categories()
-        if category not in categories:
-            categories.append(category)
-            save_categories(categories)
-            flash(f'Danh mục "{category}" đã được thêm!', 'success')
-        else:
-            flash(f'Danh mục "{category}" đã tồn tại!', 'warning')
-    else:
+    parent = request.form.get('parent', '').strip().lower() if request.form.get('parent', '').strip() else None
+    
+    if not category:
         flash('Tên danh mục không được để trống!', 'danger')
+        return redirect(url_for('manage_categories'))
+    
+    categories = load_categories()
+    
+    # Tạo unique key: nếu có parent thì "parent/child", nếu không thì chỉ "category"
+    if parent:
+        category_key = f"{parent}/{category}"
+    else:
+        category_key = category
+    
+    # Kiểm tra key đã tồn tại chưa
+    if category_key in categories:
+        if parent:
+            flash(f'❌ Danh mục con "{category}" đã tồn tại trong "{parent}"!', 'danger')
+        else:
+            flash(f'❌ Danh mục gốc "{category}" đã tồn tại!', 'danger')
+        return redirect(url_for('manage_categories'))
+    
+    # Kiểm tra parent có tồn tại không
+    if parent and parent not in categories:
+        flash(f'❌ Danh mục cha "{parent}" không tồn tại!', 'danger')
+        return redirect(url_for('manage_categories'))
+    
+    # Kiểm tra không thể tạo danh mục con của chính nó
+    if parent == category:
+        flash(f'❌ Không thể tạo danh mục con của chính nó!', 'danger')
+        return redirect(url_for('manage_categories'))
+    
+    # Thêm category mới với key unique
+    categories[category_key] = {
+        'name': category,
+        'parent': parent,
+        'children': [],
+        'display_name': category  # Tên hiển thị
+    }
+    
+    # Cập nhật children của parent
+    if parent:
+        if 'children' not in categories[parent]:
+            categories[parent]['children'] = []
+        categories[parent]['children'].append(category_key)
+    
+    save_categories(categories)
+    
+    if parent:
+        flash(f'✓ Danh mục con "{category}" đã được thêm vào "{parent}"!', 'success')
+    else:
+        flash(f'✓ Danh mục "{category}" đã được thêm!', 'success')
+    
+    return redirect(url_for('manage_categories'))
+
+@app.route('/admin/categories/fix-orphans', methods=['POST'])
+@admin_required
+def fix_orphan_categories():
+    """Fix các danh mục con bị orphan (parent không đúng)"""
+    categories = load_categories()
+    fixed_count = 0
+    
+    # Tìm các danh mục có parent nhưng không nằm trong children của parent
+    for cat_name, cat_data in list(categories.items()):
+        parent = cat_data.get('parent')
+        if parent and parent in categories:
+            # Kiểm tra xem cat_name có trong children của parent không
+            if cat_name not in categories[parent].get('children', []):
+                # Thêm vào children
+                if 'children' not in categories[parent]:
+                    categories[parent]['children'] = []
+                categories[parent]['children'].append(cat_name)
+                fixed_count += 1
+    
+    if fixed_count > 0:
+        save_categories(categories)
+        flash(f'✓ Đã sửa {fixed_count} danh mục con!', 'success')
+    else:
+        flash('Không có danh mục nào cần sửa.', 'info')
+    
     return redirect(url_for('manage_categories'))
 
 @app.route('/admin/categories/delete', methods=['POST'])
 @admin_required
 def delete_category():
-    category = request.form.get('category', '').strip().lower()
+    category = request.form.get('category', '').strip()
     if category and category != 'general':
         categories = load_categories()
         if category in categories:
-            categories.remove(category)
+            cat_data = categories[category]
+            
+            # Kiểm tra xem có danh mục con không
+            if cat_data.get('children'):
+                flash(f'Không thể xóa danh mục "{category}" vì còn có danh mục con!', 'danger')
+                return redirect(url_for('manage_categories'))
+            
+            # Xóa khỏi children của parent (nếu có)
+            parent = cat_data.get('parent')
+            if parent and parent in categories:
+                if category in categories[parent].get('children', []):
+                    categories[parent]['children'].remove(category)
+            
+            # Xóa category
+            del categories[category]
             save_categories(categories)
             flash(f'Danh mục "{category}" đã được xóa!', 'success')
         else:

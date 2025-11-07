@@ -63,32 +63,38 @@
                     <div class="row g-3">
                         {% for cat_stats in categories_with_stats %}
                         <div class="col-md-6 col-lg-4">
-                            <a href="{{ url_for('notes', category=cat_stats.name) }}" class="text-decoration-none">
-                                <div class="card h-100 category-card" 
-                                     style="transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
-                                     onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.15)'"
-                                     onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <h5 class="mb-0">
-                                                <i class="bi bi-folder"></i> {{ cat_stats.name }}
-                                            </h5>
-                                            <span class="badge bg-primary">{{ cat_stats.count }}</span>
-                                        </div>
-                                        {% if cat_stats.recent_note %}
-                                        <p class="text-muted mb-1 small" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            {{ cat_stats.recent_note.title | striptags }}
-                                        </p>
-                                        <small class="text-muted">
-                                            <i class="bi bi-clock"></i> 
-                                            {{ cat_stats.recent_date.strftime('%d/%m/%Y %H:%M') if cat_stats.recent_date else '' }}
-                                        </small>
-                                        {% else %}
-                                        <p class="text-muted mb-0 small fst-italic">Chưa có ghi chú</p>
-                                        {% endif %}
+                            <div class="card h-100 category-card" 
+                                 style="transition: transform 0.2s, box-shadow 0.2s;">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="mb-0">
+                                            {% if cat_stats.has_children %}
+                                            <i class="bi bi-folder"></i>
+                                            <a href="{{ url_for('view_category', category_name=cat_stats.name) }}" class="text-decoration-none">
+                                                {{ cat_stats.name }}
+                                            </a>
+                                            {% else %}
+                                            <i class="bi bi-folder"></i>
+                                            <a href="{{ url_for('notes', category=cat_stats.name) }}" class="text-decoration-none">
+                                                {{ cat_stats.name }}
+                                            </a>
+                                            {% endif %}
+                                        </h5>
+                                        <span class="badge bg-primary">{{ cat_stats.count }}</span>
                                     </div>
+                                    {% if cat_stats.recent_note %}
+                                    <p class="text-muted mb-1 small" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ cat_stats.recent_note.title | striptags }}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> 
+                                        {{ cat_stats.recent_date.strftime('%d/%m/%Y %H:%M') if cat_stats.recent_date else '' }}
+                                    </small>
+                                    {% else %}
+                                    <p class="text-muted mb-0 small fst-italic">Chưa có ghi chú</p>
+                                    {% endif %}
                                 </div>
-                            </a>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -144,6 +150,7 @@
     </div>
 </div>
 {% endblock %}
+
 
 {% block extra_css %}
 <style>
