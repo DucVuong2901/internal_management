@@ -73,3 +73,22 @@ uploads/**
 instance/**
 !instance/.gitkeep
 
+# Environment variables - QUAN TRỌNG: Không commit file .env
+.env
+.env.local
+.env.production
+
+# Logs directory
+data/logs/
+*.log
+
+# Backup files
+*.backup
+backup_*.tar.gz
+backup_*.zip
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+

@@ -1,0 +1,39 @@
+[Unit]
+Description=Internal Management System
+After=network.target
+
+[Service]
+Type=notify
+# Thay đổi user và group phù hợp với hệ thống của bạn
+User=www-data
+Group=www-data
+
+# Thay đổi đường dẫn phù hợp với vị trí cài đặt
+WorkingDirectory=/var/www/internal_management
+Environment="PATH=/var/www/internal_management/venv/bin"
+Environment="FLASK_ENV=production"
+
+# Load environment variables từ file .env
+EnvironmentFile=/var/www/internal_management/.env
+
+# Command để chạy application
+ExecStart=/var/www/internal_management/venv/bin/gunicorn \
+    --bind 0.0.0.0:5001 \
+    --workers 4 \
+    --timeout 120 \
+    --access-logfile /var/www/internal_management/data/logs/access.log \
+    --error-logfile /var/www/internal_management/data/logs/error.log \
+    --log-level info \
+    --capture-output \
+    wsgi:application
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

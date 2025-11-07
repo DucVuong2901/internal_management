@@ -1,0 +1,91 @@
+"""
+Configuration file for Internal Management System
+Tách riêng cấu hình để dễ quản lý giữa development và production
+"""
+import os
+from datetime import timedelta
+
+class Config:
+    """Base configuration"""
+    # Thư mục gốc
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    
+    # Secret key - PHẢI thay đổi trong production
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-change-this-in-production'
+    
+    # Database & Storage
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    
+    # Session configuration
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
+    SESSION_COOKIE_SECURE = False  # Set True nếu dùng HTTPS
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_NAME = 'session'
+    
+    # File upload configuration
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'zip'}
+    
+    # Application settings
+    DOMAIN_NAME = os.environ.get('DOMAIN_NAME', None)
+    HOST = os.environ.get('HOST', '0.0.0.0')
+    PORT = int(os.environ.get('PORT', 5001))
+    
+    # Logging
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
+    LOG_FILE = os.path.join(DATA_DIR, 'app.log')
+    
+    # Edit logs cleanup
+    EDIT_LOGS_RETENTION_DAYS = int(os.environ.get('EDIT_LOGS_RETENTION_DAYS', 30))
+
+
+class DevelopmentConfig(Config):
+    """Development configuration"""
+    DEBUG = True
+    TESTING = False
+
+
+class ProductionConfig(Config):
+    """Production configuration"""
+    DEBUG = False
+    TESTING = False
+    
+    # Production nên dùng HTTPS
+    SESSION_COOKIE_SECURE = True
+    
+    # Tăng thời gian session trong production
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+    
+    # Bắt buộc phải có SECRET_KEY từ environment
+    @property
+    def SECRET_KEY(self):
+        secret_key = os.environ.get('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("SECRET_KEY environment variable must be set in production!")
+        return secret_key
+
+
+class TestingConfig(Config):
+    """Testing configuration"""
+    DEBUG = True
+    TESTING = True
+    
+    # Sử dụng database test riêng
+    DATA_DIR = os.path.join(Config.BASE_DIR, 'data_test')
+
+
+# Mapping configuration
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': DevelopmentConfig
+}
+
+
+def get_config(env=None):
+    """Get configuration based on environment"""
+    if env is None:
+        env = os.environ.get('FLASK_ENV', 'development')
+    return config.get(env, config['default'])

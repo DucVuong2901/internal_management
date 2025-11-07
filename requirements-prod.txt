@@ -1,0 +1,17 @@
+# Production requirements
+# Bao gồm tất cả dependencies cần thiết cho production
+
+# Core Flask dependencies
+Flask==3.0.0
+Flask-Login==0.6.3
+Werkzeug==3.0.1
+
+# Production WSGI server
+gunicorn==21.2.0  # Cho Linux/Unix
+# waitress==2.1.2  # Uncomment cho Windows
+
+# Security
+python-dotenv==1.0.0  # Để load environment variables từ .env file
+
+# Monitoring & Logging (optional)
+# sentry-sdk[flask]==1.38.0  # Error tracking

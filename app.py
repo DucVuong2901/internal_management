@@ -9,35 +9,31 @@ import re
 import zipfile
 import shutil
 import tempfile
+import logging
+from logging.handlers import RotatingFileHandler
 
 # Import custom storage modules
 from csv_storage import CSVUserStorage, User
 from file_storage import FileStorage, Note, Document
 
+# Import configuration
+from config import get_config
+
+# Load configuration
+config_name = os.environ.get('FLASK_ENV', 'development')
+config_obj = get_config(config_name)
+
 # Đảm bảo Flask tìm đúng thư mục templates và static
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = config_obj.BASE_DIR
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
+app.config.from_object(config_obj)
 
-# Cấu hình session để KHÔNG lưu - tự động logout khi đóng tab/trình duyệt (bảo mật cao)
-app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60  # 1 giờ (session ngắn)
-app.config['SESSION_COOKIE_SECURE'] = False  # True nếu dùng HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# QUAN TRỌNG: Cookie chỉ tồn tại trong phiên trình duyệt (KHÔNG persist)
-# Không set SESSION_COOKIE_PERMANENT hoặc set = False để cookie tự xóa khi đóng tab
-app.config['SESSION_COOKIE_NAME'] = 'session'
-# Session cookie sẽ tự động là session-only khi session.permanent = False
-
-# Cấu hình tên miền (có thể set qua environment variable)
-# Ví dụ: set DOMAIN_NAME=mydomain.com hoặc DOMAIN_NAME=192.168.1.100
-DOMAIN_NAME = os.environ.get('DOMAIN_NAME', None)
-
-# Data directory - Tất cả dữ liệu được lưu ở đây để dễ backup
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+# Lấy các biến từ config
+DOMAIN_NAME = app.config['DOMAIN_NAME']
+DATA_DIR = app.config['DATA_DIR']
 
 # Đảm bảo thư mục data tồn tại
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -56,6 +52,36 @@ edit_logs_file = os.path.join(DATA_DIR, 'edit_logs.json')
 # Categories storage
 categories_file = os.path.join(DATA_DIR, 'categories.json')
 
+# Setup logging
+def setup_logging():
+    """Cấu hình logging cho production"""
+    if not app.debug:
+        # Tạo thư mục logs nếu chưa có
+        log_dir = os.path.join(DATA_DIR, 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # File handler với rotation (max 10MB, giữ 10 files backup)
+        log_file = os.path.join(log_dir, 'app.log')
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=10
+        )
+        file_handler.setLevel(logging.INFO)
+        
+        # Format log
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # Thêm handler vào app logger
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Internal Management System startup')
+
+setup_logging()
+
 # Migration: Di chuyển users.csv từ thư mục gốc sang data/users.csv nếu cần
 _old_users_file = os.path.join(BASE_DIR, 'users.csv')
 _new_users_file = os.path.join(DATA_DIR, 'users.csv')
@@ -72,6 +98,31 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Vui lòng đăng nhập để truy cập trang này.'
 login_manager.login_message_category = 'info'
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Xử lý lỗi 404 - Không tìm thấy trang"""
+    app.logger.warning(f'404 error: {request.url}')
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Xử lý lỗi 500 - Lỗi server"""
+    app.logger.error(f'500 error: {error}')
+    return render_template('errors/500.html'), 500
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Xử lý lỗi 403 - Không có quyền truy cập"""
+    app.logger.warning(f'403 error: {request.url}')
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Xử lý lỗi 413 - File quá lớn"""
+    flash('File tải lên quá lớn! Kích thước tối đa là 50MB.', 'danger')
+    return redirect(request.referrer or url_for('dashboard'))
 
 @login_manager.user_loader
 def load_user(user_id):

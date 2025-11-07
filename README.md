@@ -249,6 +249,40 @@ Xem file `FILES_TO_COPY.txt` để biết danh sách đầy đủ.
 - **Backup định kỳ thư mục `data/`** - Tất cả dữ liệu đã được tổ chức trong thư mục này để dễ backup
 - Xem `BACKUP_GUIDE.md` để biết hướng dẫn backup chi tiết
 
+## 🚀 Production Deployment
+
+Để deploy lên production server, xem hướng dẫn chi tiết tại:
+- **[PRODUCTION_DEPLOY.md](PRODUCTION_DEPLOY.md)** - Hướng dẫn deploy đầy đủ
+- **[OPTIMIZATION_SUMMARY.md](OPTIMIZATION_SUMMARY.md)** - Tóm tắt các cải tiến
+
+### Quick Deploy (Linux)
+
+```bash
+# 1. Clone code
+git clone https://github.com/YOUR_USERNAME/internal_management.git
+cd internal_management
+
+# 2. Setup
+./deploy_production.sh
+
+# 3. Configure
+nano .env  # Thay đổi SECRET_KEY
+
+# 4. Run
+./run_production.sh
+```
+
+### Production Features
+
+- ✅ Gunicorn WSGI server với multi-workers
+- ✅ Logging với rotation (10MB, 10 backups)
+- ✅ Error handlers (404, 403, 500, 413)
+- ✅ Environment-based configuration
+- ✅ Systemd service support
+- ✅ Nginx reverse proxy ready
+- ✅ SSL/HTTPS support
+- ✅ Security hardening
+
 ## License
 
 MIT License
