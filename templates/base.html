@@ -60,6 +60,12 @@
                             <i class="bi bi-search"></i> Tìm kiếm
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'chat' %}active{% endif %}" href="{{ url_for('chat') }}">
+                            <i class="bi bi-chat-dots"></i> Chat
+                            <span class="badge bg-danger" id="chatBadge" style="display: none;">0</span>
+                        </a>
+                    </li>
                     {% if current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('manage_users') or request.endpoint.startswith('new_user') or request.endpoint.startswith('edit_user') or request.endpoint.startswith('manage_categories') or request.endpoint == 'edit_logs' or request.endpoint == 'export_import' %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
@@ -174,6 +180,30 @@
         1. Session cookie là session-only (không có expires/max-age) → tự xóa khi đóng trình duyệt
         2. JavaScript phát hiện beforeunload/pagehide → gọi /api/logout để xóa session ngay lập tức
         3. Kết hợp cả hai phương pháp để đảm bảo logout khi đóng tab -->
+    
+    <!-- Chat notification badge -->
+    <script>
+        // Update chat badge
+        async function updateChatBadge() {
+            try {
+                const response = await fetch('/chat/unread-count');
+                const data = await response.json();
+                const badge = document.getElementById('chatBadge');
+                if (badge && data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline-block';
+                } else if (badge) {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error updating chat badge:', error);
+            }
+        }
+        
+        // Update every 10 seconds
+        updateChatBadge();
+        setInterval(updateChatBadge, 10000);
+    </script>
     {% endif %}
     
     {% block extra_js %}{% endblock %}

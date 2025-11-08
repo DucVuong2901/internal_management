@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý File Chat - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-folder-open"></i> Quản lý File Chat</h2>
+            <p class="text-muted">Quản lý dung lượng lưu trữ file chat của bạn (Giới hạn: 1GB/user)</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('chat') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Quay lại Chat
+            </a>
+        </div>
+    </div>
+    
+    <!-- Storage Info -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-pie-chart"></i> Dung lượng sử dụng</h5>
+                    
+                    <!-- Progress -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><strong>{{ storage_info.used_mb }} MB</strong> / 1024 MB</span>
+                            <span class="{% if storage_info.is_full %}text-danger{% elif storage_info.is_warning %}text-warning{% else %}text-success{% endif %}">
+                                {{ storage_info.used_percent }}%
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar {% if storage_info.is_full %}bg-danger{% elif storage_info.is_warning %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ storage_info.used_percent }}%"
+                                 aria-valuenow="{{ storage_info.used_percent }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ storage_info.used_percent }}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="border rounded p-3">
+                                <h3 class="mb-0">{{ storage_info.used_mb }}</h3>
+                                <small class="text-muted">MB Đã dùng</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-3">
+                                <h3 class="mb-0">{{ storage_info.remaining_mb }}</h3>
+                                <small class="text-muted">MB Còn lại</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-3">
+                                <h3 class="mb-0">{{ files_list|length }}</h3>
+                                <small class="text-muted">File</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Warning Box -->
+        <div class="col-md-4">
+            <div class="card {% if storage_info.is_full %}border-danger{% elif storage_info.is_warning %}border-warning{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        {% if storage_info.is_full %}
+                            <i class="bi bi-exclamation-circle text-danger"></i> Đầy!
+                        {% elif storage_info.is_warning %}
+                            <i class="bi bi-exclamation-triangle text-warning"></i> Cảnh báo
+                        {% else %}
+                            <i class="bi bi-check-circle text-success"></i> Bình thường
+                        {% endif %}
+                    </h5>
+                    
+                    {% if storage_info.is_full %}
+                        <p class="text-danger">
+                            <strong>Bạn đã dùng hết 1GB!</strong><br>
+                            Không thể gửi file mới. Vui lòng xóa bớt file hoặc chuyển lên Note.
+                        </p>
+                    {% elif storage_info.is_warning %}
+                        <p class="text-warning">
+                            <strong>Sắp đầy!</strong><br>
+                            Bạn đã dùng >80% dung lượng. Nên xóa bớt file để tránh đầy.
+                        </p>
+                    {% else %}
+                        <p class="text-success">
+                            Dung lượng còn nhiều. Bạn có thể tiếp tục gửi file.
+                        </p>
+                    {% endif %}
+                    
+                    <hr>
+                    <h6>💡 Gợi ý:</h6>
+                    <ul class="small mb-0">
+                        <li>Xóa file cũ không cần thiết</li>
+                        <li>Chuyển file quan trọng lên Note</li>
+                        <li>Tải file về máy rồi xóa</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Files Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-files"></i> Danh sách File ({{ files_list|length }} file)</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedFiles()" id="deleteSelectedBtn" style="display: none;">
+                    <i class="bi bi-trash"></i> Xóa đã chọn
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if files_list %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                </th>
+                                <th>Tên file</th>
+                                <th>Kích thước</th>
+                                <th>Ngày tạo</th>
+                                <th>Người gửi/nhận</th>
+                                <th width="150">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files_list %}
+                            <tr>
+                                <td>
+                                    {% if file.is_sender %}
+                                    <input type="checkbox" class="file-checkbox" value="{{ file.message_id }}">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <i class="bi bi-file-earmark"></i>
+                                    <strong>{{ file.original_name }}</strong>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ file.size_mb }} MB</span></td>
+                                <td><small class="text-muted">{{ file.created_at[:10] }}</small></td>
+                                <td>
+                                    {% if file.is_sender %}
+                                        <span class="badge bg-primary">Bạn gửi</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Bạn nhận</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="/chat/download/{{ file.filename }}" class="btn btn-sm btn-outline-primary" download>
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    {% if file.is_sender %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteFile({{ file.message_id }}, '{{ file.original_name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-sm btn-outline-secondary" disabled title="Chỉ người gửi mới xóa được">
+                                        <i class="bi bi-lock"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox" style="font-size: 64px; opacity: 0.3;"></i>
+                    <p class="mt-3">Chưa có file nào</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ================= JS ================= -->
+<script>
+// Toggle select all
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateDeleteButton();
+}
+
+// Show/Hide delete selected button
+function updateDeleteButton() {
+    const anyChecked = document.querySelectorAll('.file-checkbox:checked').length > 0;
+    document.getElementById('deleteSelectedBtn').style.display = anyChecked ? 'inline-block' : 'none';
+}
+
+// Watch checkbox changes
+document.querySelectorAll('.file-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateDeleteButton);
+});
+
+// Delete one file
+async function deleteFile(messageId, filename) {
+    if (!confirm(`Bạn có chắc muốn xóa file "${filename}"?`)) return;
+
+    try {
+        const res = await fetch(`/chat/delete/${messageId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ Đã xóa file thành công!');
+            location.reload();
+        } else {
+            alert('❌ Lỗi: ' + data.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Không thể xóa file. Vui lòng thử lại.');
+    }
+}
+
+// Delete multiple files
+async function deleteSelectedFiles() {
+    const ids = Array.from(document.querySelectorAll('.file-checkbox:checked')).map(cb => cb.value);
+    if (ids.length === 0) return;
+    if (!confirm(`Bạn có chắc muốn xóa ${ids.length} file đã chọn?`)) return;
+
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+        try {
+            const res = await fetch(`/chat/delete/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) ok++; else fail++;
+        } catch { fail++; }
+    }
+
+    alert(`Đã xóa ${ok} file thành công${fail ? `, ${fail} file lỗi` : ''}.`);
+    location.reload();
+}
+</script>
+{% endblock %}

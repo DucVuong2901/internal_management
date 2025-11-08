@@ -51,6 +51,9 @@ file_storage = FileStorage(
 edit_logs_file = os.path.join(DATA_DIR, 'edit_logs.json')
 # Categories storage
 categories_file = os.path.join(DATA_DIR, 'categories.json')
+# Chat storage
+from chat_storage import ChatStorage
+chat_storage = ChatStorage(data_dir=DATA_DIR)
 
 # Setup logging
 def setup_logging():
@@ -395,11 +398,11 @@ def login():
         user = user_storage.get_user_by_username(username)
         
         if user and user.check_password(password) and user.is_active:
-            # Đăng nhập KHÔNG lưu session - tự động logout khi đóng tab/trình duyệt (bảo mật)
-            # remember=False: không lưu cookie persistent
-            login_user(user, remember=False)
-            # KHÔNG đặt permanent - session chỉ tồn tại trong phiên trình duyệt
-            session.permanent = False
+            # Đăng nhập với remember=True để session được lưu đúng cách
+            # Session sẽ tồn tại trong thời gian được cấu hình (PERMANENT_SESSION_LIFETIME)
+            login_user(user, remember=True)
+            # Đặt session permanent để Flask-Login lưu session đúng cách
+            session.permanent = True
             # Đảm bảo session được lưu ngay lập tức
             session.modified = True
             next_page = request.args.get('next')
@@ -417,10 +420,20 @@ def logout():
     # Xóa session và cookie ngay lập tức
     logout_user()
     session.clear()  # Xóa toàn bộ session
-    flash('Bạn đã đăng xuất thành công.', 'success')
+    
+    # Tạo response redirect
     response = redirect(url_for('login'))
+    
     # Đảm bảo xóa cookie session
     response.set_cookie('session', '', expires=0, max_age=0)
+    response.set_cookie('remember_token', '', expires=0, max_age=0)
+    
+    # Set cache control để không cache trang này
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    flash('Bạn đã đăng xuất thành công.', 'success')
     return response
 
 @app.route('/change-password', methods=['GET', 'POST'])
@@ -1999,6 +2012,207 @@ def import_data():
         traceback.print_exc()
         flash(f'Lỗi khi import dữ liệu: {str(e)}', 'danger')
         return redirect(url_for('export_import'))
+
+# ==================== CHAT ROUTES ====================
+
+@app.route('/chat')
+@login_required
+def chat():
+    """Trang chat chính"""
+    # Lấy danh sách users để chat
+    all_users = user_storage.get_all_users()
+    users = [
+        {
+            'id': u['id'],
+            'username': u['username'],
+            'role': u['role'],
+            'is_active': u['is_active']
+        }
+        for u in all_users
+        if u['id'] != current_user.id and u['is_active']
+    ]
+    
+    # Lấy danh sách conversations
+    conversations = chat_storage.get_user_conversations(current_user.id)
+    
+    # Thêm thông tin user vào conversations
+    for conv in conversations:
+        user = user_storage.get_user_by_id(conv['user_id'])
+        if user:
+            conv['username'] = user.username
+            conv['role'] = user.role
+    
+    # Lấy số tin nhắn chưa đọc
+    unread_count = chat_storage.get_unread_count(current_user.id)
+    
+    return render_template('chat.html',
+                         users=users,
+                         conversations=conversations,
+                         unread_count=unread_count)
+
+@app.route('/chat/conversation/<int:user_id>')
+@login_required
+def get_conversation(user_id):
+    """API: Lấy cuộc hội thoại với user"""
+    # Lấy tin nhắn
+    messages = chat_storage.get_conversation(current_user.id, user_id)
+    
+    # Đánh dấu đã đọc
+    chat_storage.mark_as_read(current_user.id, user_id)
+    
+    # Lấy thông tin user
+    other_user = user_storage.get_user_by_id(user_id)
+    
+    return jsonify({
+        'success': True,
+        'messages': messages,
+        'other_user': {
+            'id': other_user.id,
+            'username': other_user.username,
+            'role': other_user.role
+        } if other_user else None
+    })
+
+@app.route('/chat/send', methods=['POST'])
+@login_required
+def send_message():
+    """API: Gửi tin nhắn"""
+    receiver_id = request.form.get('receiver_id', type=int)
+    message = request.form.get('message', '').strip()
+    attachment = request.files.get('attachment')
+    
+    if not receiver_id:
+        return jsonify({'success': False, 'error': 'Thiếu receiver_id'}), 400
+    
+    if not message and not attachment:
+        return jsonify({'success': False, 'error': 'Tin nhắn hoặc file đính kèm là bắt buộc'}), 400
+    
+    # Kiểm tra receiver tồn tại
+    receiver = user_storage.get_user_by_id(receiver_id)
+    if not receiver:
+        return jsonify({'success': False, 'error': 'User không tồn tại'}), 404
+    
+    # Kiểm tra storage limit nếu có file đính kèm
+    if attachment and attachment.filename:
+        # Đọc file size
+        attachment.seek(0, os.SEEK_END)
+        file_size = attachment.tell()
+        attachment.seek(0)  # Reset về đầu file
+        
+        # Kiểm tra cả sender và receiver
+        can_upload_sender, error_sender = chat_storage.can_upload_file(current_user.id, file_size)
+        can_upload_receiver, error_receiver = chat_storage.can_upload_file(receiver_id, file_size)
+        
+        if not can_upload_sender:
+            return jsonify({
+                'success': False,
+                'error': error_sender,
+                'storage_full': True
+            }), 400
+        
+        if not can_upload_receiver:
+            return jsonify({
+                'success': False,
+                'error': f"Người nhận {error_receiver}",
+                'storage_full': True
+            }), 400
+    
+    # Gửi tin nhắn
+    try:
+        new_message = chat_storage.send_message(
+            sender_id=current_user.id,
+            receiver_id=receiver_id,
+            message=message if message else None,
+            attachment_file=attachment if attachment else None
+        )
+        
+        # Lấy storage info để cảnh báo
+        storage_info = chat_storage.get_storage_info(current_user.id)
+        
+        return jsonify({
+            'success': True,
+            'message': new_message,
+            'storage_warning': storage_info['is_warning'],
+            'storage_info': storage_info
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/chat/unread-count')
+@login_required
+def get_unread_count():
+    """API: Lấy số tin nhắn chưa đọc"""
+    count = chat_storage.get_unread_count(current_user.id)
+    return jsonify({'count': count})
+
+@app.route('/chat/download/<filename>')
+@login_required
+def download_chat_file(filename):
+    """Download file đính kèm trong chat"""
+    return send_from_directory(chat_storage.chat_uploads_dir, filename, as_attachment=True)
+
+@app.route('/chat/delete/<int:message_id>', methods=['POST'])
+@login_required
+def delete_chat_message(message_id):
+    """Xóa tin nhắn (chỉ người gửi)"""
+    success = chat_storage.delete_message(message_id, current_user.id)
+    
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Không thể xóa tin nhắn'}), 403
+
+@app.route('/chat/storage-info')
+@login_required
+def get_storage_info():
+    """API: Lấy thông tin storage của user"""
+    storage_info = chat_storage.get_storage_info(current_user.id)
+    return jsonify(storage_info)
+
+@app.route('/chat/manage-files')
+@login_required
+def manage_chat_files():
+    """Trang quản lý file chat"""
+    storage_info = chat_storage.get_storage_info(current_user.id)
+    files_list = chat_storage.get_user_files_list(current_user.id)
+    
+    return render_template('manage_chat_files.html',
+                         storage_info=storage_info,
+                         files_list=files_list)
+
+@app.route('/chat/clear-history/<int:other_user_id>', methods=['POST'])
+@login_required
+def clear_chat_history(other_user_id):
+    """Xóa lịch sử chat với user (chỉ xóa tin nhắn mà user gửi)"""
+    try:
+        messages = chat_storage._load_messages()
+        
+        # Xóa tin nhắn mà current_user gửi cho other_user
+        deleted_count = 0
+        new_messages = []
+        
+        for msg in messages:
+            if msg['sender_id'] == current_user.id and msg['receiver_id'] == other_user_id:
+                # Xóa file đính kèm nếu có
+                if msg.get('attachment_filename'):
+                    file_path = os.path.join(chat_storage.chat_uploads_dir, msg['attachment_filename'])
+                    if os.path.exists(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                deleted_count += 1
+            else:
+                new_messages.append(msg)
+        
+        chat_storage._save_messages(new_messages)
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Tạo admin mặc định nếu chưa có

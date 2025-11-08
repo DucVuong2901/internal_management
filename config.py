@@ -16,12 +16,19 @@ class Config:
     # Database & Storage
     DATA_DIR = os.path.join(BASE_DIR, 'data')
     
+    # SQLAlchemy Database Configuration
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.join(DATA_DIR, "database.db")}'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ECHO = False  # Set True để debug SQL queries
+    
     # Session configuration
+    SESSION_TYPE = 'filesystem'  # Lưu session vào filesystem thay vì memory
     PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
     SESSION_COOKIE_SECURE = False  # Set True nếu dùng HTTPS
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_NAME = 'session'
+    SESSION_REFRESH_EACH_REQUEST = True  # Refresh session mỗi request
     
     # File upload configuration
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size

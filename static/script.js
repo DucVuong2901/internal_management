@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         let isUnloading = false;
         let isNavigating = false; // Flag để phân biệt navigation vs đóng tab
+        let isLoggingOut = false; // Flag riêng cho logout
         let otherTabsActive = false;
         let navigationTimer = null;
         let isInitializing = true; // Flag để đánh dấu đang khởi tạo
@@ -156,6 +157,28 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Lắng nghe tất cả link clicks và form submits để đánh dấu navigation
         document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button');
+            
+            // Nếu là link logout, set flag và cleanup
+            if (target) {
+                const href = target.getAttribute('href');
+                if (href && (href.includes('/logout') || href.includes('logout'))) {
+                    console.log('Logout clicked - cleaning up and allowing navigation');
+                    // Set flag logout để các event handler khác biết
+                    isLoggingOut = true;
+                    isNavigating = true;
+                    isUnloading = true;
+                    // Cleanup localStorage trước khi logout
+                    try {
+                        localStorage.removeItem('note_app_active_tabs');
+                        channel.close();
+                    } catch(e) {}
+                    // KHÔNG prevent default, KHÔNG stop propagation
+                    // Để browser navigate bình thường đến /logout
+                    return;
+                }
+            }
+            
             // Cập nhật activity ngay khi có click (tab đang active)
             updateActivity();
             
@@ -172,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 2000);
             }
             
-            const target = e.target.closest('a, button');
             if (target && (target.tagName === 'A' || (target.tagName === 'BUTTON' && target.type === 'submit'))) {
                 const href = target.getAttribute('href');
                 // Chỉ đánh dấu navigation nếu là link trong cùng domain
@@ -319,8 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Khi tab đóng - CHỈ xử lý khi thực sự đóng tab, không phải reload/navigation
         window.addEventListener('beforeunload', function(e) {
-            // Nếu đang navigation, không làm gì cả
-            if (isNavigating) {
+            // Nếu đang logout hoặc navigation, không làm gì cả
+            if (isLoggingOut || isNavigating) {
                 return;
             }
             
@@ -332,6 +354,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Khi pagehide - phân biệt reload vs đóng tab
         window.addEventListener('pagehide', function(e) {
+            // Nếu đang logout, không làm gì
+            if (isLoggingOut) {
+                return;
+            }
+            
             // e.persisted = true khi trang được cache (reload)
             // e.persisted = false khi tab thực sự đóng
             if (e.persisted === false && !isNavigating) {
