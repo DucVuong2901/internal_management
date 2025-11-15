@@ -398,43 +398,30 @@ def login():
         user = user_storage.get_user_by_username(username)
         
         if user and user.check_password(password) and user.is_active:
-            # Đăng nhập với remember=True để session được lưu đúng cách
-            # Session sẽ tồn tại trong thời gian được cấu hình (PERMANENT_SESSION_LIFETIME)
-            login_user(user, remember=True)
-            # Đặt session permanent để Flask-Login lưu session đúng cách
+            # Đăng nhập với remember=False (không dùng remember cookie)
+            # Session sẽ tồn tại trong thời gian PERMANENT_SESSION_LIFETIME (1 giờ)
+            login_user(user, remember=False)
+            # Đặt session permanent để có timeout theo PERMANENT_SESSION_LIFETIME
             session.permanent = True
-            # Đảm bảo session được lưu ngay lập tức
-            session.modified = True
             next_page = request.args.get('next')
             flash(f'Chào mừng, {user.username}!', 'success')
-            response = redirect(next_page) if next_page else redirect(url_for('dashboard'))
-            return response
+            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
             flash('Tên đăng nhập hoặc mật khẩu không đúng!', 'danger')
     
     return render_template('login.html')
 
-@app.route('/logout', methods=['GET', 'POST'])
-@login_required
+@app.route('/logout')
 def logout():
-    # Xóa session và cookie ngay lập tức
+    """Đăng xuất và xóa session"""
+    # Logout user - Flask-Login sẽ tự động xóa user khỏi session
     logout_user()
-    session.clear()  # Xóa toàn bộ session
     
-    # Tạo response redirect
-    response = redirect(url_for('login'))
-    
-    # Đảm bảo xóa cookie session
-    response.set_cookie('session', '', expires=0, max_age=0)
-    response.set_cookie('remember_token', '', expires=0, max_age=0)
-    
-    # Set cache control để không cache trang này
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    
+    # Flash message
     flash('Bạn đã đăng xuất thành công.', 'success')
-    return response
+    
+    # Redirect về login
+    return redirect(url_for('login'))
 
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
@@ -489,42 +476,29 @@ def change_password():
     return render_template('change_password.html')
 
 @app.before_request
-def check_session_validity():
-    """Đảm bảo session không permanent (chỉ tồn tại trong phiên trình duyệt)"""
+def refresh_session():
+    """
+    Refresh session timeout mỗi request để giữ session sống trong khi user đang hoạt động.
+    Session sẽ tự động hết hạn sau PERMANENT_SESSION_LIFETIME (1 giờ) kể từ request cuối cùng.
+    """
     # Bỏ qua cho static files và login route
-    if request.endpoint in ['login', 'static'] or request.path.startswith('/static/'):
+    if request.endpoint in ['login', 'static']:
         return None
     
-    # Đảm bảo session không permanent để tự động logout khi đóng tab
+    if request.path and request.path.startswith('/static/'):
+        return None
+    
+    # Refresh session timeout nếu user đang đăng nhập
     if current_user.is_authenticated:
-        session.permanent = False
+        session.modified = True  # Đánh dấu session đã thay đổi để Flask refresh timeout
 
 @app.after_request
 def set_no_cache_headers(response):
-    """Thiết lập headers để không cache trang (bảo mật)"""
+    """
+Thiết lập headers để không cache trang (bảo mật)"""
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
-    
-    # QUAN TRỌNG: Đảm bảo session cookie không có expires/max-age
-    # Để cookie chỉ tồn tại trong phiên trình duyệt (tự xóa khi đóng tab)
-    if 'Set-Cookie' in response.headers:
-        import re
-        cookies = response.headers.getlist('Set-Cookie')
-        new_cookies = []
-        for cookie in cookies:
-            # Nếu là session cookie, loại bỏ expires và Max-Age
-            if 'session=' in cookie:
-                # Loại bỏ expires và Max-Age để cookie chỉ là session cookie
-                cookie = re.sub(r';\s*[Ee]xpires=[^;]+', '', cookie)
-                cookie = re.sub(r';\s*[Mm]ax-[Aa]ge=[^;]+', '', cookie)
-            new_cookies.append(cookie)
-        
-        # Cập nhật lại Set-Cookie headers
-        response.headers.pop('Set-Cookie', None)
-        for cookie in new_cookies:
-            response.headers.add('Set-Cookie', cookie)
-    
     return response
 
 @app.route('/')
@@ -2278,21 +2252,21 @@ Sử dụng thanh tìm kiếm để tìm nhanh trong cả ghi chú và tài li�
     HOST = os.environ.get('HOST', '0.0.0.0')  # 0.0.0.0 để truy cập từ mọi IP
     PORT = int(os.environ.get('PORT', 5001))  # Port 5001 để tránh trùng với port 5000
     
-    # Hiển thị thông tin truy cập
+    # Hien thi thong tin truy cap
     if DOMAIN_NAME:
         print(f"\n{'='*50}")
-        print(f"  Truy cập ứng dụng tại:")
+        print(f"  Access application at:")
         print(f"  http://{DOMAIN_NAME}:{PORT}")
         if not ':' in DOMAIN_NAME:
             print(f"  http://{DOMAIN_NAME}")
         print(f"{'='*50}\n")
     else:
         print(f"\n{'='*50}")
-        print(f"  Truy cập ứng dụng tại:")
+        print(f"  Access application at:")
         print(f"  http://localhost:{PORT}")
         print(f"  http://127.0.0.1:{PORT}")
         print(f"  http://<your-ip>:{PORT}")
-        print(f"  (Để dùng tên miền, set: set DOMAIN_NAME=yourdomain.com)")
+        print(f"  (To use domain, set: set DOMAIN_NAME=yourdomain.com)")
         print(f"{'='*50}\n")
     
     app.run(debug=True, host=HOST, port=PORT)

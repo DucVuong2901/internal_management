@@ -22,13 +22,13 @@ class Config:
     SQLALCHEMY_ECHO = False  # Set True để debug SQL queries
     
     # Session configuration
-    SESSION_TYPE = 'filesystem'  # Lưu session vào filesystem thay vì memory
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
+    # Session sẽ tự động hết hạn sau PERMANENT_SESSION_LIFETIME kể từ request cuối cùng
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=1)  # Session timeout: 1 giờ
     SESSION_COOKIE_SECURE = False  # Set True nếu dùng HTTPS
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_HTTPONLY = True  # Bảo vệ khỏi XSS
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Bảo vệ khỏi CSRF
     SESSION_COOKIE_NAME = 'session'
-    SESSION_REFRESH_EACH_REQUEST = True  # Refresh session mỗi request
+    SESSION_REFRESH_EACH_REQUEST = True  # Refresh session timeout mỗi request
     
     # File upload configuration
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
