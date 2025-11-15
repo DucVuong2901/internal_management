@@ -221,11 +221,26 @@ function showFilePreview(f){fileName.textContent=f.name;filePreview.style.displa
 
 /* === Format thời gian === */
 function formatTime(iso){
-  const d=new Date(iso);const vn=new Date(d.getTime()+7*3600000);
-  const diff=Date.now()-vn;if(diff<6e4)return'Vừa xong';
-  if(diff<36e5)return Math.floor(diff/6e4)+' phút trước';
-  if(diff<864e5)return Math.floor(diff/36e5)+' giờ trước';
-  return vn.toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+  const d=new Date(iso);
+  const diff=Date.now()-d.getTime();
+  
+  // < 1 phút
+  if(diff<60000)return'Vừa xong';
+  // < 1 giờ
+  if(diff<3600000)return Math.floor(diff/60000)+'p';
+  // < 24 giờ
+  if(diff<86400000)return Math.floor(diff/3600000)+'h';
+  
+  // >= 24 giờ: hiển thị ngày tháng giờ
+  const today=new Date();
+  const yesterday=new Date(today);
+  yesterday.setDate(yesterday.getDate()-1);
+  
+  const isYesterday=d.toDateString()===yesterday.toDateString();
+  const time=d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  
+  if(isYesterday)return'Hôm qua '+time;
+  return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+time;
 }
 
 

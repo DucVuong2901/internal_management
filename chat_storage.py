@@ -4,7 +4,7 @@ Sẽ migrate sang database sau
 """
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 
 class ChatStorage:
@@ -44,7 +44,7 @@ class ChatStorage:
     def _cleanup_old_messages(self):
         """Tự động xóa tin nhắn cũ hơn MESSAGE_RETENTION_HOURS giờ"""
         messages = self._load_messages()
-        cutoff_time = datetime.utcnow() - timedelta(hours=self.MESSAGE_RETENTION_HOURS)
+        cutoff_time = datetime.now() - timedelta(hours=self.MESSAGE_RETENTION_HOURS)
         
         messages_to_keep = []
         deleted_count = 0
@@ -93,7 +93,7 @@ class ChatStorage:
         if attachment_file:
             original_name = secure_filename(attachment_file.filename)
             file_ext = os.path.splitext(original_name)[1]
-            attachment_filename = f"chat_{msg_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{file_ext}"
+            attachment_filename = f"chat_{msg_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}{file_ext}"
             
             # Lưu file
             file_path = os.path.join(self.chat_uploads_dir, attachment_filename)
@@ -108,7 +108,7 @@ class ChatStorage:
             'attachment_filename': attachment_filename,
             'attachment_original_name': attachment_original_name,
             'is_read': False,
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now().isoformat()
         }
         
         messages.append(new_message)

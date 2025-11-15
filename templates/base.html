@@ -310,10 +310,24 @@
     function formatMiniTime(iso){
         const d=new Date(iso);
         const diff=Date.now()-d.getTime();
+        
+        // < 1 phút
         if(diff<60000)return'Vừa xong';
+        // < 1 giờ
         if(diff<3600000)return Math.floor(diff/60000)+'p';
+        // < 24 giờ
         if(diff<86400000)return Math.floor(diff/3600000)+'h';
-        return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'});
+        
+        // >= 24 giờ: hiển thị ngày tháng giờ
+        const today=new Date();
+        const yesterday=new Date(today);
+        yesterday.setDate(yesterday.getDate()-1);
+        
+        const isYesterday=d.toDateString()===yesterday.toDateString();
+        const time=d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+        
+        if(isYesterday)return'Hôm qua '+time;
+        return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'})+' '+time;
     }
     
     function escapeHtml(text){
