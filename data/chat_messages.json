@@ -1,1 +1,72 @@
-[]
+[
+  {
+    "id": 1,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "sad",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:22:15.984209"
+  },
+  {
+    "id": 2,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "ád",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:22:20.924415"
+  },
+  {
+    "id": 3,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "ád",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:22:21.364803"
+  },
+  {
+    "id": 4,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "= Format thời gian === */\r\nfunction formatTime(iso){\r\n  const d=new Date(iso);const vn=new Date(d.getTime()+7*3600000);\r\n  const diff=Date.now()-vn;if(diff<6e4)return'Vừa xong';\r\n  if(diff<36e5)return Math.floor(diff/6e4)+' phút trước';\r\n  if(diff<864e5)return Math.floor(diff/36e5)+' giờ trước';\r\n  return vn.toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});\r\n}\r\n\r\n\r\n/* === Paste & DragDrop === */\r\nfunction setupPasteHandler(){[messageInput,chatMessages].forEach(el=>{\r\n  el.addEventListener('paste',e=>{\r\n    const items=e.clipboardData?.items||[];\r\n    for(const it of items){if(it.type.includes('image')){e.preventDefault();\r\n      const blob=it.getAsFile();const dt=new DataTransfer();dt.items.add(new File([blob],`pasted-${Date.now()}.png`,{type:blob.type}));\r\n      fileInput.files=dt.files;showFilePreview(dt.files[0]);messageInput.focus();break;}\r\n    }",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:22:25.659644"
+  },
+  {
+    "id": 5,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "* === Polling fallback === */\r\nfunction startPolling(){\r\n  if(refreshInterval)clearInterval(refreshInterval);\r\n  refreshInterval=setInterval(refreshMessages,3000);\r\n}\r\nfunction stopPolling(){\r\n  if(refreshInterval){clearInterval(refreshInterval);refreshInterval=null;}\r\n}\r\nasync function refreshMessages(){\r\n  try{\r\n    const r=await fetch('/chat/group/messages');\r\n    const d=await r.json();\r\n    if(d.success){displayMessages(d.messages);}\r\n  }catch(e){console.error(e);}",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:22:38.878765"
+  },
+  {
+    "id": 6,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "# Emit socket event để realtime update         try:             socketio.emit('new_message', {'message': new_message}, broadcast=True)         except:             pass                  return jsonify({             'success': True,             'message': new_message",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:53:41.979726"
+  },
+  {
+    "id": 7,
+    "sender_id": 10,
+    "receiver_id": 0,
+    "message": "# Emit socket event để realtime update\r\n        try:\r\n            socketio.emit('new_message', {'message': new_message}, broadcast=True)\r\n        except:\r\n            pass\r\n        \r\n        return jsonify({\r\n            'success': True,\r\n            'message': new_message",
+    "attachment_filename": null,
+    "attachment_original_name": null,
+    "is_read": false,
+    "created_at": "2025-11-15T02:54:40.186119"
+  }
+]

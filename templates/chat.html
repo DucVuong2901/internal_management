@@ -1,28 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Chat - Hệ thống Quản lý Nội Bộ{% endblock %}
+{% block title %}Chat Tổng - Hệ thống Quản lý Nội Bộ{% endblock %}
 
 {% block extra_css %}
 <style>
 /* ==== Base & Layout ==== */
 footer{display:none!important}
 .chat-container{display:flex;background:#f8f9fa;transition:background-color .3s ease;height:100%}
-.chat-sidebar{width:320px;background:#fff;border-right:1px solid #dee2e6;display:flex;flex-direction:column;transition:all .3s ease;height:100%}
-.chat-sidebar.hidden{transform:translateX(-100%)}
-.chat-sidebar-backdrop{
- position:fixed;top:56px;left:0;right:0;bottom:0;
- background:rgba(0,0,0,.4);backdrop-filter:blur(2px);
- display:none;z-index:5;
-}
-.chat-sidebar-backdrop.show{display:block}
-.chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%}
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:#6c757d}
+.chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%;max-width:1200px;margin:0 auto;width:100%}
 .chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;background:#f8f9fa;transition:background-color .3s ease;height:0}
-.message{display:flex;margin-bottom:16px}
-.message.sent{justify-content:flex-end}
-.message-bubble{max-width:60%;padding:12px 16px;border-radius:18px;transition:background-color .3s ease,color .3s ease}
-.message.sent .message-bubble{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
-.message.received .message-bubble{background:#fff;color:#212529}
+.message{display:flex;margin-bottom:16px;align-items:flex-start}
+.message-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0;margin-right:12px}
+.message-content{flex:1}
+.message-header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.message-username{font-weight:600;font-size:14px;color:#495057}
+.message-time{font-size:11px;color:#6c757d}
+.message-bubble{padding:10px 14px;border-radius:12px;background:#fff;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:background-color .3s ease,color .3s ease}
+.message.sent .message-avatar{background:linear-gradient(135deg,#28a745,#20c997)}
+.message.sent .message-bubble{background:#e3f2fd}
 .chat-input-area{padding:20px;padding-bottom:25px;border-top:1px solid #dee2e6;background:#fff;flex-shrink:0;z-index:10;transition:all .3s ease}
 .chat-input-form{display:flex;gap:10px;align-items:flex-end}
 .chat-input-wrapper{position:relative}
@@ -35,137 +30,65 @@ footer{display:none!important}
 
 /* ==== Dark Mode ==== */
 [data-theme="dark"] .chat-container{background:#1a1a1a}
-[data-theme="dark"] .chat-sidebar{background:#2d2d2d;border-right-color:#495057}
 [data-theme="dark"] .chat-main{background:#1a1a1a}
 [data-theme="dark"] .chat-messages{background:#1a1a1a}
-[data-theme="dark"] .message.received .message-bubble{background:#3a3a3a;color:#e9ecef}
+[data-theme="dark"] .message-bubble{background:#3a3a3a;color:#e9ecef}
+[data-theme="dark"] .message.sent .message-bubble{background:#2c5282;color:#e9ecef}
 [data-theme="dark"] .chat-input-area{background:#2d2d2d;border-top-color:#495057}
 [data-theme="dark"] .chat-header{background:#2d2d2d;border-bottom-color:#495057!important}
-[data-theme="dark"] .conversation-item{color:#e9ecef;border-bottom-color:#495057!important}
-[data-theme="dark"] .conversation-item:hover{background:rgba(255,255,255,0.05)}
-[data-theme="dark"] .chat-sidebar-header{background:#667eea!important}
-[data-theme="dark"] .empty-state{color:#adb5bd}
+[data-theme="dark"] .message-username{color:#e9ecef}
+[data-theme="dark"] .message-time{color:#adb5bd}
 
-/* ==== Conversation Items ==== */
-.conversation-item{cursor:pointer;transition:background-color .2s ease}
-.conversation-item:hover{background:#f8f9fa!important}
-.conversation-item.unread{background:#e7f3ff;border-left:3px solid #0d6efd}
-.conversation-item .last-message{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.conversation-item .unread-badge{font-size:0.75rem;padding:0.25em 0.5em}
-[data-theme="dark"] .conversation-item:hover{background:rgba(255,255,255,0.08)!important}
-[data-theme="dark"] .conversation-item.unread{background:rgba(13,110,253,0.15);border-left-color:#0d6efd}
-
-@media(max-width:768px){
- .chat-sidebar{position:fixed;z-index:6;height:100%;top:56px;left:0}
-}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="chat-container" style="position:fixed;top:56px;left:0;right:0;bottom:0;padding-bottom:50px;">
-  <!-- Sidebar -->
-  <div class="chat-sidebar" id="chatSidebar">
-    <div class="chat-sidebar-header p-3 bg-primary text-white">
-      <h5><i class="bi bi-chat-dots"></i> Tin nhắn</h5>
-      <small>{{ unread_count }} tin chưa đọc</small>
-    </div>
-    <div class="chat-search p-3 border-bottom">
-      <input type="text" id="searchUsers" class="form-control" placeholder="Tìm kiếm người dùng...">
-    </div>
-    <div class="conversations-list flex-grow-1 overflow-auto">
-      {% if conversations %}
-        {% for conv in conversations %}
-        <div class="conversation-item p-3 border-bottom {% if conv.unread_count > 0 %}unread{% endif %}" 
-             data-user-id="{{ conv.user_id }}" 
-             data-username="{{ conv.username }}"
-             data-unread="{{ conv.unread_count }}">
-          <div class="d-flex justify-content-between align-items-start">
-            <div class="flex-grow-1">
-              <strong>{{ conv.username }}</strong>
-              {% if conv.unread_count > 0 %}
-              <span class="badge bg-danger ms-2 unread-badge">{{ conv.unread_count }}</span>
-              {% endif %}
-              <br><small class="text-muted">{{ conv.role }}</small>
-            </div>
-          </div>
-          {% if conv.last_message.message %}
-          <div class="last-message text-muted small mt-1">{{ conv.last_message.message[:50] }}{% if conv.last_message.message|length > 50 %}...{% endif %}</div>
-          {% elif conv.last_message.attachment_filename %}
-          <div class="last-message text-muted small mt-1"><i class="bi bi-paperclip"></i> File đính kèm</div>
-          {% endif %}
-        </div>
-        {% endfor %}
-      {% endif %}
-      
-      {% for user in users %}
-        {% set found = namespace(value=false) %}
-        {% for conv in conversations %}
-          {% if conv.user_id == user.id %}
-            {% set found.value = true %}
-          {% endif %}
-        {% endfor %}
-        {% if not found.value %}
-        <div class="conversation-item p-3 border-bottom" data-user-id="{{ user.id }}" data-username="{{ user.username }}">
-          <strong>{{ user.username }}</strong><br><small class="text-muted">{{ user.role }}</small>
-        </div>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </div>
-  <div class="chat-sidebar-backdrop" id="sidebarBackdrop"></div>
-
   <!-- Main chat -->
   <div class="chat-main d-flex flex-column">
-    <div class="empty-state" id="emptyState">
-      <i class="bi bi-chat-square-text" style="font-size:64px;opacity:.3"></i>
-      <h5>Chọn một cuộc trò chuyện</h5>
-      <p>Chọn người dùng bên trái để bắt đầu chat</p>
-    </div>
-
-    <div id="chatArea" style="display:none;flex-direction:column;flex:1;height:100%;overflow:hidden;">
-      <div class="chat-header p-3 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
-        <button class="btn btn-sm btn-outline-secondary d-md-none" id="backBtn"><i class="bi bi-arrow-left"></i></button>
-        <div class="chat-header-avatar rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" id="chatHeaderAvatar" style="width:40px;height:40px;"></div>
-        <div class="chat-header-info flex-grow-1">
-          <h6 id="chatHeaderName" class="mb-0"></h6><small id="chatHeaderRole" class="text-muted"></small>
-        </div>
-        <div class="dropdown">
-          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Tùy chọn">
-            <i class="bi bi-three-dots-vertical"></i>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showImages()">
-              <i class="bi bi-images text-primary"></i> Xem ảnh đã gửi
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showAttachments()">
-              <i class="bi bi-paperclip text-info"></i> Xem file đính kèm
-            </a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault();clearChatHistory()">
-              <i class="bi bi-trash"></i> Xóa lịch sử chat
-            </a></li>
-          </ul>
-        </div>
+    <div class="chat-header p-3 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
+      <div class="chat-header-avatar rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+        <i class="bi bi-people-fill"></i>
       </div>
-      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-header-info flex-grow-1">
+        <h6 class="mb-0"><i class="bi bi-chat-dots"></i> Chat Tổng</h6>
+        <small class="text-muted">{{ total_users }} thành viên</small>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Tùy chọn">
+          <i class="bi bi-three-dots-vertical"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showImages()">
+            <i class="bi bi-images text-primary"></i> Xem ảnh đã gửi
+          </a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showAttachments()">
+            <i class="bi bi-paperclip text-info"></i> Xem file đính kèm
+          </a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault();clearChatHistory()">
+            <i class="bi bi-trash"></i> Xóa lịch sử chat
+          </a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
 
-      <div class="chat-input-area">
-        <form id="chatForm" class="chat-input-form" enctype="multipart/form-data">
-          <input type="hidden" id="receiverId" name="receiver_id">
-          <div class="chat-input-wrapper flex-grow-1 position-relative">
-            <textarea id="messageInput" name="message" class="form-control" placeholder="Nhập tin nhắn..." rows="1" style="resize:none;padding-right:45px;"></textarea>
-            <button type="button" class="attach-btn-inline" onclick="fileInput.click()" title="Đính kèm file">
-              <i class="bi bi-paperclip"></i>
-            </button>
-            <input type="file" id="fileInput" name="attachment" style="display:none;">
-          </div>
-          <button type="submit" class="send-btn"><i class="bi bi-send-fill"></i></button>
-        </form>
-        <div id="filePreview" class="mt-2" style="display:none;">
-          <small class="text-muted"><i class="bi bi-paperclip"></i> <span id="fileName"></span>
-            <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearFile()">Xóa</button>
-          </small>
+    <div class="chat-input-area">
+      <form id="chatForm" class="chat-input-form" enctype="multipart/form-data">
+        <div class="chat-input-wrapper flex-grow-1 position-relative">
+          <textarea id="messageInput" name="message" class="form-control" placeholder="Nhập tin nhắn..." rows="1" style="resize:none;padding-right:45px;"></textarea>
+          <button type="button" class="attach-btn-inline" onclick="fileInput.click()" title="Đính kèm file">
+            <i class="bi bi-paperclip"></i>
+          </button>
+          <input type="file" id="fileInput" name="attachment" style="display:none;">
         </div>
+        <button type="submit" class="send-btn"><i class="bi bi-send-fill"></i></button>
+      </form>
+      <div id="filePreview" class="mt-2" style="display:none;">
+        <small class="text-muted"><i class="bi bi-paperclip"></i> <span id="fileName"></span>
+          <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearFile()">Xóa</button>
+        </small>
       </div>
     </div>
   </div>
@@ -176,7 +99,7 @@ footer{display:none!important}
 <!-- Socket.IO client -->
 <script src="/socket.io/socket.io.js"></script>
 <script>
-let currentUserId=null,currentUsername=null,refreshInterval=null,lastMessageCount=0;
+let refreshInterval=null,lastMessageCount=0;
 let socket=null,socketReady=false;
 
 /* === Scroll === */
@@ -187,32 +110,13 @@ function scrollToBottom(force=false){
   if(force||nearBottom) box.scrollTo({top:box.scrollHeight,behavior:'smooth'});
 }
 
-/* === Load hội thoại === */
-async function loadConversation(uid,uname){
-  currentUserId=uid;currentUsername=uname;
-  document.getElementById('emptyState').style.display='none';
-  document.getElementById('chatArea').style.display='flex';
-  document.getElementById('chatHeaderAvatar').textContent=uname[0].toUpperCase();
-  document.getElementById('chatHeaderName').textContent=uname;
-  document.getElementById('receiverId').value=uid;
-
-  if(refreshInterval)clearInterval(refreshInterval);
+/* === Load messages === */
+async function loadMessages(){
   try{
-    const r=await fetch(`/chat/conversation/${uid}`);
+    const r=await fetch('/chat/group/messages');
     const d=await r.json();
     if(d.success){displayMessages(d.messages,true);}
   }catch(e){console.error(e);}
-
-  // Xóa badge và highlight unread cho conversation này
-  const convItem=document.querySelector(`.conversation-item[data-user-id="${uid}"]`);
-  if(convItem){
-    convItem.classList.remove('unread');
-    const badge=convItem.querySelector('.unread-badge');
-    if(badge)badge.remove();
-  }
-
-  if(!socketReady){startPolling();}else{stopPolling();}
-  hideSidebar();
 }
 
 /* === Hiển thị tin nhắn === */
@@ -224,22 +128,55 @@ function displayMessages(msgs,forceScroll=false){
   msgs.forEach(m=>{
     const wrap=document.createElement('div');
     wrap.className=m.sender_id==uid?'message sent':'message received';
-    const b=document.createElement('div');b.className='message-bubble';
-    if(m.message){b.innerHTML+=`<div class='message-text'>${m.message}</div>`;}
+    
+    // Avatar
+    const avatar=document.createElement('div');
+    avatar.className='message-avatar';
+    avatar.textContent=(m.sender_name||'?')[0].toUpperCase();
+    wrap.appendChild(avatar);
+    
+    // Content
+    const content=document.createElement('div');
+    content.className='message-content';
+    
+    // Header (username + time)
+    const header=document.createElement('div');
+    header.className='message-header';
+    const username=document.createElement('span');
+    username.className='message-username';
+    username.textContent=m.sender_name||'Unknown';
+    const time=document.createElement('span');
+    time.className='message-time';
+    time.textContent=formatTime(m.created_at);
+    header.appendChild(username);
+    header.appendChild(time);
+    content.appendChild(header);
+    
+    // Bubble
+    const b=document.createElement('div');
+    b.className='message-bubble';
+    if(m.message){b.innerHTML+=`<div class='message-text'>${escapeHtml(m.message)}</div>`;}
     if(m.attachment_filename){
       const ext=m.attachment_filename.toLowerCase();
       const isImg=/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(ext);
       if(isImg){
-        b.innerHTML+=`<div class="message-image-preview"><img src="/chat/download/${m.attachment_filename}" style="max-width:300px;cursor:pointer;border-radius:8px" ondblclick="showImagePopup('/chat/download/${m.attachment_filename}','${m.attachment_original_name||m.attachment_filename}')"></div>`;
+        b.innerHTML+=`<div class="message-image-preview mt-2"><img src="/chat/download/${m.attachment_filename}" style="max-width:300px;cursor:pointer;border-radius:8px" ondblclick="showImagePopup('/chat/download/${m.attachment_filename}','${m.attachment_original_name||m.attachment_filename}')"></div>`;
       }else{
-        b.innerHTML+=`<div class="message-attachment"><i class="bi bi-file-earmark"></i> <a href="/chat/download/${m.attachment_filename}" download>${m.attachment_original_name||m.attachment_filename}</a></div>`;
+        b.innerHTML+=`<div class="message-attachment mt-2"><i class="bi bi-file-earmark"></i> <a href="/chat/download/${m.attachment_filename}" download>${m.attachment_original_name||m.attachment_filename}</a></div>`;
       }
     }
-    b.innerHTML+=`<div class='message-time'>${formatTime(m.created_at)}</div>`;
-    wrap.appendChild(b);c.appendChild(wrap);
+    content.appendChild(b);
+    wrap.appendChild(content);
+    c.appendChild(wrap);
   });
   lastMessageCount=msgs.length;
   scrollToBottom(forceScroll);
+}
+
+function escapeHtml(text){
+  const div=document.createElement('div');
+  div.textContent=text;
+  return div.innerHTML.replace(/\n/g,'<br>');
 }
 
 /* === Polling fallback === */
@@ -251,11 +188,10 @@ function stopPolling(){
   if(refreshInterval){clearInterval(refreshInterval);refreshInterval=null;}
 }
 async function refreshMessages(){
-  if(!currentUserId)return;
   try{
-    const r=await fetch(`/chat/conversation/${currentUserId}`);
+    const r=await fetch('/chat/group/messages');
     const d=await r.json();
-    if(d.success){const prev=lastMessageCount;displayMessages(d.messages);}
+    if(d.success){displayMessages(d.messages);}
   }catch(e){console.error(e);}
 }
 
@@ -264,9 +200,10 @@ chatForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const fd=new FormData(chatForm);
   if(!fd.get('message')&&!fd.get('attachment').name)return;
-  const r=await fetch('/chat/send',{method:'POST',body:fd});
+  const r=await fetch('/chat/group/send',{method:'POST',body:fd});
   const d=await r.json();
   if(d.success){chatForm.reset();clearFile();lastMessageCount=0;await refreshMessages();scrollToBottom(true);}
+  else{alert('Lỗi: '+(d.error||'Không thể gửi tin nhắn'));}
 });
 
 /* === Enter để gửi === */
@@ -291,11 +228,6 @@ function formatTime(iso){
   return vn.toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
-/* === Sidebar control === */
-function hideSidebar(){if(window.innerWidth<768){chatSidebar.classList.add('hidden');sidebarBackdrop.classList.remove('show');}}
-function showSidebar(){if(window.innerWidth<768){chatSidebar.classList.remove('hidden');sidebarBackdrop.classList.add('show');}}
-sidebarBackdrop.addEventListener('click',()=>showSidebar());
-backBtn?.addEventListener('click',()=>showSidebar());
 
 /* === Paste & DragDrop === */
 function setupPasteHandler(){[messageInput,chatMessages].forEach(el=>{
@@ -314,8 +246,7 @@ function setupDragDropHandler(){[chatMessages,messageInput].forEach(z=>{
 
 /* === Xem file đính kèm === */
 async function showAttachments(){
-  if(!currentUserId)return;
-  const r=await fetch(`/chat/conversation/${currentUserId}`);
+  const r=await fetch('/chat/group/messages');
   const d=await r.json();
   if(!d.success)return alert('Không thể tải file');
   const files=d.messages.filter(m=>m.attachment_filename&&!/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(m.attachment_filename));
@@ -355,8 +286,7 @@ async function showAttachments(){
 
 /* === Xem ảnh đã gửi === */
 async function showImages(){
-  if(!currentUserId)return;
-  const r=await fetch(`/chat/conversation/${currentUserId}`);
+  const r=await fetch('/chat/group/messages');
   const d=await r.json();
   if(!d.success)return alert('Không thể tải ảnh');
   const imgs=d.messages.filter(m=>m.attachment_filename&&/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(m.attachment_filename));
@@ -392,18 +322,25 @@ async function showImages(){
   document.body.appendChild(modal);
 }
 
+
 /* === Xóa lịch sử chat === */
 async function clearChatHistory(){
-  if(!currentUserId)return;
-  if(!confirm('Xóa toàn bộ lịch sử chat với '+currentUsername+'?\n\nHành động này không thể hoàn tác!'))return;
-  const r=await fetch(`/chat/clear-history/${currentUserId}`,{method:'POST'});
-  const d=await r.json();
-  if(d.success){
-    alert('Đã xóa lịch sử chat!');
-    lastMessageCount=0;
-    refreshMessages();
-  }else{
-    alert('Lỗi: '+(d.message||'Không thể xóa'));
+  if(!confirm('Xóa toàn bộ lịch sử chat?\n\nHành động này không thể hoàn tác!\n\nTất cả tin nhắn và file đính kèm sẽ bị xóa vĩnh viễn.')){
+    return;
+  }
+  try{
+    const r=await fetch('/chat/group/clear-history',{method:'POST'});
+    const d=await r.json();
+    if(d.success){
+      alert('✓ Đã xóa lịch sử chat!');
+      lastMessageCount=0;
+      document.getElementById('chatMessages').innerHTML='';
+      loadMessages();
+    }else{
+      alert('✗ Lỗi: '+(d.error||'Không thể xóa lịch sử'));
+    }
+  }catch(e){
+    alert('✗ Lỗi kết nối: '+e.message);
   }
 }
 
@@ -429,20 +366,25 @@ function initSocket(){
     socket.on('connect',()=>{socketReady=true;stopPolling();});
     socket.on('socket_ready',()=>{socketReady=true;stopPolling();});
     socket.on('disconnect',()=>{socketReady=false;startPolling();});
-    socket.on('new_message',({message})=>{
-      if(!currentUserId)return;
-      const open=parseInt(currentUserId,10);
-      const relate=(message.sender_id===open)||(message.receiver_id===open);
-      if(relate){lastMessageCount=0;refreshMessages().then(()=>scrollToBottom(true));}
+    socket.on('new_message',()=>{
+      lastMessageCount=0;
+      refreshMessages().then(()=>scrollToBottom(true));
+    });
+    socket.on('chat_cleared',()=>{
+      lastMessageCount=0;
+      document.getElementById('chatMessages').innerHTML='';
+      alert('⚠️ Lịch sử chat đã bị xóa bởi admin');
     });
   }catch(e){console.error('Socket init failed',e);socketReady=false;startPolling();}
 }
 
 /* === Init === */
 document.addEventListener('DOMContentLoaded',()=>{
-  setupPasteHandler();setupDragDropHandler();initSocket();
+  setupPasteHandler();
+  setupDragDropHandler();
+  initSocket();
+  loadMessages();
   setTimeout(()=>{if(!socketReady)startPolling();},1500);
 });
-document.querySelectorAll('.conversation-item').forEach(i=>i.addEventListener('click',()=>loadConversation(i.dataset.userId,i.dataset.username)));
 </script>
 {% endblock %}

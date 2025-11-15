@@ -175,6 +175,225 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     
     {% if current_user.is_authenticated %}
+    <!-- Floating Chat Widget -->
+    {% if request.endpoint != 'chat' %}
+    <div id="floatingChatWidget">
+        <!-- Chat Button -->
+        <button id="chatToggleBtn" class="floating-chat-btn" title="Mở chat">
+            <i class="bi bi-chat-dots-fill"></i>
+            <span class="chat-unread-badge" id="floatingChatBadge" style="display:none;">0</span>
+        </button>
+        
+        <!-- Mini Chat Window -->
+        <div id="miniChatWindow" class="mini-chat-window" style="display:none;">
+            <div class="mini-chat-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-chat-dots-fill"></i>
+                    <span>Chat Tổng</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn-mini-chat" onclick="openFullChat()" title="Mở toàn màn hình">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <button class="btn-mini-chat" onclick="toggleMiniChat()" title="Đóng">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mini-chat-messages" id="miniChatMessages"></div>
+            <div class="mini-chat-input">
+                <form id="miniChatForm" class="d-flex gap-2 align-items-end">
+                    <textarea id="miniMessageInput" class="form-control form-control-sm" placeholder="Nhập tin nhắn... (Shift+Enter để xuống dòng)" autocomplete="off" rows="1" style="resize:none;max-height:100px;overflow-y:auto;"></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    /* Floating Chat Widget */
+    #floatingChatWidget{position:fixed;bottom:20px;right:20px;z-index:1000;}
+    .floating-chat-btn{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;font-size:24px;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;transition:all .3s ease;position:relative;}
+    .floating-chat-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,0.25);}
+    .chat-unread-badge{position:absolute;top:-5px;right:-5px;background:#dc3545;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid #fff;}
+    
+    .mini-chat-window{position:fixed;bottom:0;right:0;width:400px;height:450px;background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;z-index:999;}
+    [data-theme="dark"] .mini-chat-window{background:#2d2d2d;border:1px solid #495057;border-bottom:none;}
+    
+    .mini-chat-header{padding:12px 16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:600;}
+    .btn-mini-chat{background:transparent;border:none;color:#fff;padding:4px 8px;cursor:pointer;border-radius:4px;transition:background .2s;}
+    .btn-mini-chat:hover{background:rgba(255,255,255,0.2);}
+    
+    .mini-chat-messages{flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;}
+    [data-theme="dark"] .mini-chat-messages{background:#1a1a1a;}
+    
+    .mini-message{margin-bottom:12px;display:flex;gap:8px;align-items:flex-start;}
+    .mini-message-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0;}
+    .mini-message-content{flex:1;min-width:0;}
+    .mini-message-header{display:flex;gap:6px;align-items:baseline;margin-bottom:2px;}
+    .mini-message-username{font-weight:600;font-size:12px;color:#495057;}
+    [data-theme="dark"] .mini-message-username{color:#e9ecef;}
+    .mini-message-time{font-size:10px;color:#6c757d;}
+    .mini-message-bubble{background:#fff;padding:8px 12px;border-radius:8px;font-size:13px;word-wrap:break-word;word-break:break-word;white-space:pre-wrap;overflow-wrap:break-word;box-shadow:0 1px 2px rgba(0,0,0,0.05);max-width:100%;}
+    [data-theme="dark"] .mini-message-bubble{background:#3a3a3a;color:#e9ecef;}
+    
+    .mini-chat-input{padding:12px;border-top:1px solid #dee2e6;background:#fff;}
+    [data-theme="dark"] .mini-chat-input{background:#2d2d2d;border-top-color:#495057;}
+    
+    @media(max-width:768px){
+        .mini-chat-window{width:100%;right:0;height:400px;}
+        #floatingChatWidget{bottom:10px;right:10px;}
+        .floating-chat-btn{width:50px;height:50px;font-size:20px;}
+    }
+    </style>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    let miniChatSocket=null;
+    let miniChatOpen=false;
+    let lastMiniMessageCount=0;
+    
+    function toggleMiniChat(){
+        const win=document.getElementById('miniChatWindow');
+        const btn=document.getElementById('chatToggleBtn');
+        miniChatOpen=!miniChatOpen;
+        if(miniChatOpen){
+            win.style.display='flex';
+            btn.style.display='none';
+            loadMiniChatMessages();
+            initMiniChatSocket();
+        }else{
+            win.style.display='none';
+            btn.style.display='flex';
+        }
+    }
+    
+    function openFullChat(){
+        window.location.href='/chat';
+    }
+    
+    async function loadMiniChatMessages(){
+        try{
+            const r=await fetch('/chat/group/messages');
+            const d=await r.json();
+            if(d.success){
+                displayMiniMessages(d.messages.slice(-20));
+            }
+        }catch(e){console.error(e);}
+    }
+    
+    function displayMiniMessages(msgs){
+        const c=document.getElementById('miniChatMessages');
+        const uid={{ current_user.id }};
+        c.innerHTML='';
+        msgs.forEach(m=>{
+            const div=document.createElement('div');
+            div.className='mini-message';
+            div.innerHTML=`
+                <div class="mini-message-avatar">${(m.sender_name||'?')[0].toUpperCase()}</div>
+                <div class="mini-message-content">
+                    <div class="mini-message-header">
+                        <span class="mini-message-username">${m.sender_name||'Unknown'}</span>
+                        <span class="mini-message-time">${formatMiniTime(m.created_at)}</span>
+                    </div>
+                    <div class="mini-message-bubble">${escapeHtml(m.message||'[File đính kèm]')}</div>
+                </div>
+            `;
+            c.appendChild(div);
+        });
+        c.scrollTop=c.scrollHeight;
+        lastMiniMessageCount=msgs.length;
+    }
+    
+    function formatMiniTime(iso){
+        const d=new Date(iso);
+        const diff=Date.now()-d.getTime();
+        if(diff<60000)return'Vừa xong';
+        if(diff<3600000)return Math.floor(diff/60000)+'p';
+        if(diff<86400000)return Math.floor(diff/3600000)+'h';
+        return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'});
+    }
+    
+    function escapeHtml(text){
+        if(!text)return'';
+        const div=document.createElement('div');
+        div.textContent=text;
+        return div.innerHTML.replace(/\n/g,'<br>');
+    }
+    
+    function initMiniChatSocket(){
+        if(miniChatSocket)return;
+        try{
+            miniChatSocket=io({transports:['websocket','polling']});
+            miniChatSocket.on('new_message',()=>{
+                if(miniChatOpen)loadMiniChatMessages();
+                updateFloatingBadge();
+            });
+            miniChatSocket.on('chat_cleared',()=>{
+                if(miniChatOpen){
+                    document.getElementById('miniChatMessages').innerHTML='';
+                }
+            });
+        }catch(e){console.error(e);}
+    }
+    
+    document.getElementById('miniChatForm')?.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const input=document.getElementById('miniMessageInput');
+        const msg=input.value.trim();
+        if(!msg)return;
+        
+        const fd=new FormData();
+        fd.append('message',msg);
+        
+        try{
+            const r=await fetch('/chat/group/send',{method:'POST',body:fd});
+            const d=await r.json();
+            if(d.success){
+                input.value='';
+                input.style.height='auto';
+                input.rows=1;
+                loadMiniChatMessages();
+            }
+        }catch(e){console.error(e);}
+    });
+    
+    // Auto-resize textarea và xử lý Enter/Shift+Enter
+    document.getElementById('miniMessageInput')?.addEventListener('keydown',e=>{
+        if(e.key==='Enter'&&!e.shiftKey){
+            e.preventDefault();
+            document.getElementById('miniChatForm').dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    document.getElementById('miniMessageInput')?.addEventListener('input',function(){
+        this.style.height='auto';
+        this.style.height=Math.min(this.scrollHeight,100)+'px';
+    });
+    
+    document.getElementById('chatToggleBtn')?.addEventListener('click',toggleMiniChat);
+    
+    async function updateFloatingBadge(){
+        try{
+            const r=await fetch('/chat/unread-count');
+            const d=await r.json();
+            const badge=document.getElementById('floatingChatBadge');
+            if(badge&&d.count>0){
+                badge.textContent=d.count;
+                badge.style.display='flex';
+            }else if(badge){
+                badge.style.display='none';
+            }
+        }catch(e){}
+    }
+    
+    setInterval(updateFloatingBadge,10000);
+    updateFloatingBadge();
+    </script>
+    {% endif %}
+    
     <!-- Chat notification badge -->
     <script>
         // Update chat badge

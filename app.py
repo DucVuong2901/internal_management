@@ -55,6 +55,43 @@ categories_file = os.path.join(DATA_DIR, 'categories.json')
 from chat_storage import ChatStorage
 chat_storage = ChatStorage(data_dir=DATA_DIR)
 
+# Scheduled tasks
+from apscheduler.schedulers.background import BackgroundScheduler
+from pytz import utc
+import atexit
+
+# Khởi tạo scheduler với timezone
+scheduler = BackgroundScheduler(timezone=utc)
+
+# Task: Cleanup old messages mỗi 6 giờ
+def cleanup_old_chat_messages():
+    """Tự động xóa tin nhắn cũ hơn 48 giờ"""
+    try:
+        deleted = chat_storage._cleanup_old_messages()
+        if deleted > 0:
+            print(f"✓ Scheduled cleanup: Deleted {deleted} old messages")
+            app.logger.info(f"Scheduled cleanup: Deleted {deleted} old messages")
+    except Exception as e:
+        print(f"✗ Scheduled cleanup error: {e}")
+        app.logger.error(f"Scheduled cleanup error: {e}")
+
+# Đăng ký task chạy mỗi 6 giờ
+scheduler.add_job(
+    func=cleanup_old_chat_messages,
+    trigger='interval',
+    hours=6,
+    id='cleanup_chat_messages',
+    name='Cleanup old chat messages (>48h)',
+    replace_existing=True
+)
+
+# Start scheduler
+scheduler.start()
+print("✓ Scheduler started: Auto cleanup old messages every 6 hours")
+
+# Shutdown scheduler khi app tắt
+atexit.register(lambda: scheduler.shutdown())
+
 # Setup logging
 def setup_logging():
     """Cấu hình logging cho production"""
@@ -1992,79 +2029,38 @@ def import_data():
 @app.route('/chat')
 @login_required
 def chat():
-    """Trang chat chính"""
-    # Lấy danh sách users để chat
+    """Trang chat tổng"""
+    # Đếm số users active
     all_users = user_storage.get_all_users()
-    users = [
-        {
-            'id': u['id'],
-            'username': u['username'],
-            'role': u['role'],
-            'is_active': u['is_active']
-        }
-        for u in all_users
-        if u['id'] != current_user.id and u['is_active']
-    ]
+    total_users = len([u for u in all_users if u['is_active']])
     
-    # Lấy danh sách conversations
-    conversations = chat_storage.get_user_conversations(current_user.id)
-    
-    # Thêm thông tin user vào conversations
-    for conv in conversations:
-        user = user_storage.get_user_by_id(conv['user_id'])
-        if user:
-            conv['username'] = user.username
-            conv['role'] = user.role
-    
-    # Lấy số tin nhắn chưa đọc
-    unread_count = chat_storage.get_unread_count(current_user.id)
-    
-    return render_template('chat.html',
-                         users=users,
-                         conversations=conversations,
-                         unread_count=unread_count)
+    return render_template('chat.html', total_users=total_users)
 
-@app.route('/chat/conversation/<int:user_id>')
+@app.route('/chat/group/messages')
 @login_required
-def get_conversation(user_id):
-    """API: Lấy cuộc hội thoại với user"""
-    # Lấy tin nhắn
-    messages = chat_storage.get_conversation(current_user.id, user_id)
+def get_group_messages():
+    """API: Lấy tất cả tin nhắn group chat"""
+    messages = chat_storage.get_all_messages()
     
-    # Đánh dấu đã đọc
-    chat_storage.mark_as_read(current_user.id, user_id)
-    
-    # Lấy thông tin user
-    other_user = user_storage.get_user_by_id(user_id)
+    # Thêm thông tin sender vào mỗi message
+    for msg in messages:
+        user = user_storage.get_user_by_id(msg['sender_id'])
+        msg['sender_name'] = user.username if user else 'Unknown'
     
     return jsonify({
         'success': True,
-        'messages': messages,
-        'other_user': {
-            'id': other_user.id,
-            'username': other_user.username,
-            'role': other_user.role
-        } if other_user else None
+        'messages': messages
     })
 
-@app.route('/chat/send', methods=['POST'])
+@app.route('/chat/group/send', methods=['POST'])
 @login_required
-def send_message():
-    """API: Gửi tin nhắn"""
-    receiver_id = request.form.get('receiver_id', type=int)
+def send_group_message():
+    """API: Gửi tin nhắn vào group chat"""
     message = request.form.get('message', '').strip()
     attachment = request.files.get('attachment')
     
-    if not receiver_id:
-        return jsonify({'success': False, 'error': 'Thiếu receiver_id'}), 400
-    
     if not message and not attachment:
         return jsonify({'success': False, 'error': 'Tin nhắn hoặc file đính kèm là bắt buộc'}), 400
-    
-    # Kiểm tra receiver tồn tại
-    receiver = user_storage.get_user_by_id(receiver_id)
-    if not receiver:
-        return jsonify({'success': False, 'error': 'User không tồn tại'}), 404
     
     # Kiểm tra storage limit nếu có file đính kèm
     if attachment and attachment.filename:
@@ -2073,43 +2069,62 @@ def send_message():
         file_size = attachment.tell()
         attachment.seek(0)  # Reset về đầu file
         
-        # Kiểm tra cả sender và receiver
-        can_upload_sender, error_sender = chat_storage.can_upload_file(current_user.id, file_size)
-        can_upload_receiver, error_receiver = chat_storage.can_upload_file(receiver_id, file_size)
-        
-        if not can_upload_sender:
+        # Kiểm tra sender
+        can_upload, error_msg = chat_storage.can_upload_file(current_user.id, file_size)
+        if not can_upload:
             return jsonify({
                 'success': False,
-                'error': error_sender,
-                'storage_full': True
-            }), 400
-        
-        if not can_upload_receiver:
-            return jsonify({
-                'success': False,
-                'error': f"Người nhận {error_receiver}",
+                'error': error_msg,
                 'storage_full': True
             }), 400
     
-    # Gửi tin nhắn
+    # Gửi tin nhắn vào group (receiver_id = 0 để đánh dấu là group message)
     try:
-        new_message = chat_storage.send_message(
+        new_message = chat_storage.send_group_message(
             sender_id=current_user.id,
-            receiver_id=receiver_id,
             message=message if message else None,
             attachment_file=attachment if attachment else None
         )
         
-        # Lấy storage info để cảnh báo
-        storage_info = chat_storage.get_storage_info(current_user.id)
+        # Emit socket event để realtime update
+        try:
+            socketio.emit('new_message', {'message': new_message}, broadcast=True)
+        except:
+            pass
         
         return jsonify({
             'success': True,
-            'message': new_message,
-            'storage_warning': storage_info['is_warning'],
-            'storage_info': storage_info
+            'message': new_message
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/chat/group/clear-history', methods=['POST'])
+@login_required
+def clear_group_chat_history():
+    """API: Xóa toàn bộ lịch sử chat tổng (chỉ admin)"""
+    # Chỉ admin mới được xóa lịch sử chat tổng
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Chỉ admin mới có quyền xóa lịch sử chat'}), 403
+    
+    try:
+        deleted_count = chat_storage.clear_all_group_messages()
+        
+        # Log action
+        app.logger.info(f"Admin {current_user.username} cleared chat history: {deleted_count} messages deleted")
+        
+        # Emit socket event để tất cả users refresh
+        try:
+            socketio.emit('chat_cleared', {}, broadcast=True)
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        app.logger.error(f"Clear chat history error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/chat/unread-count')

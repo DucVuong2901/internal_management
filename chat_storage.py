@@ -11,7 +11,7 @@ class ChatStorage:
     # Storage limit per user: 1GB
     STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024  # 1GB
     WARNING_THRESHOLD = 0.8  # Cảnh báo khi dùng >80%
-    MESSAGE_RETENTION_HOURS = 72  # Tự động xóa tin nhắn sau 72 giờ
+    MESSAGE_RETENTION_HOURS = 48  # Tự động xóa tin nhắn sau 48 giờ
     
     def __init__(self, data_dir='data'):
         self.data_dir = data_dir
@@ -82,7 +82,7 @@ class ChatStorage:
         return max(msg['id'] for msg in messages) + 1
     
     def send_message(self, sender_id, receiver_id, message=None, attachment_file=None):
-        """Gửi tin nhắn"""
+        """Gửi tin nhắn (1-1 chat)"""
         messages = self._load_messages()
         msg_id = self.get_next_id()
         
@@ -115,6 +115,58 @@ class ChatStorage:
         self._save_messages(messages)
         
         return new_message
+    
+    def send_group_message(self, sender_id, message=None, attachment_file=None):
+        """Gửi tin nhắn vào group chat (receiver_id = 0)"""
+        return self.send_message(
+            sender_id=sender_id,
+            receiver_id=0,  # 0 = group message
+            message=message,
+            attachment_file=attachment_file
+        )
+    
+    def get_all_messages(self, limit=500):
+        """Lấy tất cả tin nhắn group chat (receiver_id = 0)"""
+        messages = self._load_messages()
+        
+        # Lọc chỉ lấy group messages
+        group_messages = [msg for msg in messages if msg.get('receiver_id') == 0]
+        
+        # Sắp xếp theo thời gian
+        group_messages.sort(key=lambda x: x['created_at'])
+        
+        # Giới hạn số lượng
+        return group_messages[-limit:]
+    
+    def clear_all_group_messages(self):
+        """Xóa toàn bộ lịch sử chat tổng (receiver_id = 0)"""
+        messages = self._load_messages()
+        
+        # Đếm số messages sẽ bị xóa
+        deleted_count = 0
+        messages_to_keep = []
+        
+        for msg in messages:
+            if msg.get('receiver_id') == 0:
+                # Xóa file đính kèm nếu có
+                if msg.get('attachment_filename'):
+                    file_path = os.path.join(self.chat_uploads_dir, msg['attachment_filename'])
+                    if os.path.exists(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                deleted_count += 1
+            else:
+                # Giữ lại messages không phải group (1-1 chat cũ nếu có)
+                messages_to_keep.append(msg)
+        
+        # Lưu lại messages
+        self._save_messages(messages_to_keep)
+        
+        print(f"✓ Cleared {deleted_count} group chat messages")
+        
+        return deleted_count
     
     def get_conversation(self, user1_id, user2_id, limit=500):
         """Lấy cuộc hội thoại giữa 2 users"""
