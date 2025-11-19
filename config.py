@@ -31,7 +31,7 @@ class Config:
     SESSION_REFRESH_EACH_REQUEST = True  # Refresh session timeout mỗi request
     
     # File upload configuration
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
+    MAX_CONTENT_LENGTH = None  # No file size limit
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'zip'}
     
     # Application settings
