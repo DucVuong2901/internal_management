@@ -125,8 +125,13 @@ class ChatStorage:
             attachment_file=attachment_file
         )
     
-    def get_all_messages(self, limit=500):
-        """Lấy tất cả tin nhắn group chat (receiver_id = 0)"""
+    def get_all_messages(self, limit=None, offset=0):
+        """Lấy tất cả tin nhắn group chat (receiver_id = 0)
+        
+        Args:
+            limit: Số lượng tin nhắn tối đa (None = không giới hạn)
+            offset: Bỏ qua bao nhiêu tin nhắn từ cuối (dùng cho pagination)
+        """
         messages = self._load_messages()
         
         # Lọc chỉ lấy group messages
@@ -135,8 +140,15 @@ class ChatStorage:
         # Sắp xếp theo thời gian
         group_messages.sort(key=lambda x: x['created_at'])
         
-        # Giới hạn số lượng
-        return group_messages[-limit:]
+        # Áp dụng pagination
+        if limit is None:
+            # Không giới hạn - trả về tất cả
+            return group_messages
+        else:
+            # Có giới hạn - lấy từ cuối, bỏ qua offset
+            start_idx = max(0, len(group_messages) - limit - offset)
+            end_idx = len(group_messages) - offset if offset > 0 else len(group_messages)
+            return group_messages[start_idx:end_idx]
     
     def clear_all_group_messages(self):
         """Xóa toàn bộ lịch sử chat tổng (receiver_id = 0)"""

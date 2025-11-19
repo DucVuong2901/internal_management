@@ -6,8 +6,8 @@
 <style>
 /* ==== Base & Layout ==== */
 footer{display:none!important}
-.chat-container{display:flex;background:#f8f9fa;transition:background-color .3s ease;height:100%}
-.chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%;max-width:1200px;margin:0 auto;width:100%}
+.chat-container{display:flex;background:#f8f9fa;transition:background-color .3s ease;height:100%;padding:20px}
+.chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%;max-width:1200px;margin:0 auto;width:100%;border:2px solid #e0e0e0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
 .chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;background:#f8f9fa;transition:background-color .3s ease;height:0}
 .message{display:flex;margin-bottom:16px;align-items:flex-start}
 .message-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0;margin-right:12px}
@@ -15,12 +15,15 @@ footer{display:none!important}
 .message-header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
 .message-username{font-weight:600;font-size:14px;color:#495057}
 .message-time{font-size:11px;color:#6c757d}
-.message-bubble{padding:10px 14px;border-radius:12px;background:#fff;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:background-color .3s ease,color .3s ease}
+.message-bubble{padding:10px 14px;border-radius:12px;background:#fff;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:background-color .3s ease,color .3s ease;word-wrap:break-word;white-space:pre-wrap}
 .message.sent .message-avatar{background:linear-gradient(135deg,#28a745,#20c997)}
 .message.sent .message-bubble{background:#e3f2fd}
-.chat-input-area{padding:20px;padding-bottom:25px;border-top:1px solid #dee2e6;background:#fff;flex-shrink:0;z-index:10;transition:all .3s ease}
+.message-text{line-height:1.5;word-break:break-word}
+.chat-header{border-top-left-radius:14px;border-top-right-radius:14px;border-bottom:2px solid #e0e0e0!important;background:#fff!important}
+.chat-input-area{padding:20px;padding-bottom:25px;border-top:2px solid #e0e0e6;background:#fff;flex-shrink:0;z-index:10;transition:all .3s ease;border-bottom-left-radius:14px;border-bottom-right-radius:14px}
 .chat-input-form{display:flex;gap:10px;align-items:flex-end}
-.chat-input-wrapper{position:relative}
+.chat-input-wrapper{position:relative;flex:1}
+#messageInput{min-height:48px;max-height:200px;overflow-y:auto;resize:none}
 .attach-btn-inline{position:absolute;right:8px;bottom:8px;background:transparent;border:none;color:#6c757d;padding:6px 8px;cursor:pointer;border-radius:4px;transition:all .2s ease}
 .attach-btn-inline:hover{background:#f8f9fa;color:#495057}
 [data-theme="dark"] .attach-btn-inline{color:#adb5bd}
@@ -30,20 +33,31 @@ footer{display:none!important}
 
 /* ==== Dark Mode ==== */
 [data-theme="dark"] .chat-container{background:#1a1a1a}
-[data-theme="dark"] .chat-main{background:#1a1a1a}
+[data-theme="dark"] .chat-main{background:#1a1a1a;border-color:#404040;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
 [data-theme="dark"] .chat-messages{background:#1a1a1a}
-[data-theme="dark"] .message-bubble{background:#3a3a3a;color:#e9ecef}
-[data-theme="dark"] .message.sent .message-bubble{background:#2c5282;color:#e9ecef}
-[data-theme="dark"] .chat-input-area{background:#2d2d2d;border-top-color:#495057}
-[data-theme="dark"] .chat-header{background:#2d2d2d;border-bottom-color:#495057!important}
+[data-theme="dark"] .message-bubble{background:#3a3a3a;color:#e9ecef!important}
+[data-theme="dark"] .message.sent .message-bubble{background:#2c5282;color:#e9ecef!important}
+[data-theme="dark"] .message.received .message-bubble{color:#e9ecef!important}
+[data-theme="dark"] .message-text{color:#e9ecef!important}
+[data-theme="dark"] .chat-input-area{background:#2d2d2d;border-top-color:#404040}
+[data-theme="dark"] .chat-header{background:#2d2d2d!important;border-bottom-color:#404040!important}
 [data-theme="dark"] .message-username{color:#e9ecef}
 [data-theme="dark"] .message-time{color:#adb5bd}
+[data-theme="dark"] #messageInput{background:#3a3a3a;color:#e9ecef;border-color:#495057}
+[data-theme="dark"] #messageInput::placeholder{color:#adb5bd}
+
+/* ==== Loading Spinner ==== */
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite}
+
+/* ==== Toast Animation ==== */
+@keyframes slideIn{from{transform:translateX(400px);opacity:0}to{transform:translateX(0);opacity:1}}
 
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="chat-container" style="position:fixed;top:56px;left:0;right:0;bottom:0;padding-bottom:50px;">
+<div class="chat-container" style="position:fixed;top:56px;left:0;right:0;bottom:0;">
   <!-- Main chat -->
   <div class="chat-main d-flex flex-column">
     <div class="chat-header p-3 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
@@ -77,7 +91,7 @@ footer{display:none!important}
     <div class="chat-input-area">
       <form id="chatForm" class="chat-input-form" enctype="multipart/form-data">
         <div class="chat-input-wrapper flex-grow-1 position-relative">
-          <textarea id="messageInput" name="message" class="form-control" placeholder="Nhập tin nhắn..." rows="1" style="resize:none;padding-right:45px;"></textarea>
+          <textarea id="messageInput" name="message" class="form-control" placeholder="Nhập tin nhắn..." style="padding-right:45px;"></textarea>
           <button type="button" class="attach-btn-inline" onclick="fileInput.click()" title="Đính kèm file">
             <i class="bi bi-paperclip"></i>
           </button>
@@ -101,6 +115,37 @@ footer{display:none!important}
 <script>
 let refreshInterval=null,lastMessageCount=0;
 let socket=null,socketReady=false;
+let totalMessageCount=0,isLoadingMore=false,allMessagesLoaded=false;
+let userColors={};
+
+/* === Generate consistent color for each user === */
+function getUserColor(userId){
+  if(userColors[userId])return userColors[userId];
+  
+  // Generate color based on user ID
+  const hue=(userId*137.508)%360; // Golden angle for good distribution
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  
+  // Adjust for dark mode
+  const saturation=isDark?70:65+((userId*50)%20); // Brighter in dark mode
+  const lightness=isDark?60:45+((userId*30)%15); // Lighter in dark mode
+  
+  userColors[userId]=`hsl(${hue},${saturation}%,${lightness}%)`;
+  return userColors[userId];
+}
+
+function getUserColorLight(userId){
+  if(!userColors[userId])getUserColor(userId);
+  const hue=(userId*137.508)%360;
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  
+  // Adjust background for dark mode
+  if(isDark){
+    return `hsl(${hue},40%,25%)`; // Dark background with color tint
+  }else{
+    return `hsl(${hue},70%,95%)`; // Light background
+  }
+}
 
 /* === Scroll === */
 function scrollToBottom(force=false){
@@ -115,24 +160,35 @@ async function loadMessages(){
   try{
     const r=await fetch('/chat/group/messages');
     const d=await r.json();
-    if(d.success){displayMessages(d.messages,true);}
+    if(d.success){
+      totalMessageCount=d.total_count||d.messages.length;
+      allMessagesLoaded=!d.has_more;
+      displayMessages(d.messages,true);
+    }
   }catch(e){console.error(e);}
 }
 
 /* === Hiển thị tin nhắn === */
-function displayMessages(msgs,forceScroll=false){
+function displayMessages(msgs,forceScroll=false,prepend=false){
   const c=document.getElementById('chatMessages');
   const uid={{ current_user.id }};
-  if(msgs.length===lastMessageCount&&!forceScroll)return;
-  c.innerHTML='';
+  if(!prepend&&msgs.length===lastMessageCount&&!forceScroll)return;
+  
+  // Nếu prepend, lưu vị trí scroll hiện tại
+  const oldScrollHeight=prepend?c.scrollHeight:0;
+  
+  if(!prepend)c.innerHTML='';
   msgs.forEach(m=>{
     const wrap=document.createElement('div');
     wrap.className=m.sender_id==uid?'message sent':'message received';
     
-    // Avatar
+    // Avatar with user color
     const avatar=document.createElement('div');
     avatar.className='message-avatar';
     avatar.textContent=(m.sender_name||'?')[0].toUpperCase();
+    if(m.sender_id!=uid){
+      avatar.style.background=getUserColor(m.sender_id);
+    }
     wrap.appendChild(avatar);
     
     // Content
@@ -152,9 +208,13 @@ function displayMessages(msgs,forceScroll=false){
     header.appendChild(time);
     content.appendChild(header);
     
-    // Bubble
+    // Bubble with user color
     const b=document.createElement('div');
     b.className='message-bubble';
+    if(m.sender_id!=uid){
+      b.style.backgroundColor=getUserColorLight(m.sender_id);
+      b.style.borderLeft=`3px solid ${getUserColor(m.sender_id)}`;
+    }
     if(m.message){b.innerHTML+=`<div class='message-text'>${escapeHtml(m.message)}</div>`;}
     if(m.attachment_filename){
       const ext=m.attachment_filename.toLowerCase();
@@ -167,10 +227,21 @@ function displayMessages(msgs,forceScroll=false){
     }
     content.appendChild(b);
     wrap.appendChild(content);
-    c.appendChild(wrap);
+    if(prepend){
+      c.insertBefore(wrap,c.firstChild);
+    }else{
+      c.appendChild(wrap);
+    }
   });
-  lastMessageCount=msgs.length;
-  scrollToBottom(forceScroll);
+  if(!prepend)lastMessageCount=msgs.length;
+  
+  // Nếu prepend, giữ vị trí scroll
+  if(prepend){
+    const newScrollHeight=c.scrollHeight;
+    c.scrollTop=newScrollHeight-oldScrollHeight;
+  }else{
+    scrollToBottom(forceScroll);
+  }
 }
 
 function escapeHtml(text){
@@ -191,8 +262,69 @@ async function refreshMessages(){
   try{
     const r=await fetch('/chat/group/messages');
     const d=await r.json();
-    if(d.success){displayMessages(d.messages);}
+    if(d.success){
+      totalMessageCount=d.total_count||d.messages.length;
+      displayMessages(d.messages);
+    }
   }catch(e){console.error(e);}
+}
+
+/* === Load more messages (lazy loading) === */
+async function loadMoreMessages(){
+  if(isLoadingMore||allMessagesLoaded)return;
+  
+  const c=document.getElementById('chatMessages');
+  const currentCount=c.querySelectorAll('.message').length;
+  
+  if(currentCount>=totalMessageCount){
+    allMessagesLoaded=true;
+    return;
+  }
+  
+  isLoadingMore=true;
+  
+  // Hiển thị loading indicator
+  const loader=document.createElement('div');
+  loader.id='loadingMore';
+  loader.className='text-center py-2';
+  loader.innerHTML='<small class="text-muted"><i class="bi bi-arrow-clockwise spin"></i> Đang tải...</small>';
+  c.insertBefore(loader,c.firstChild);
+  
+  try{
+    // Load 50 tin nhắn cũ hơn
+    const r=await fetch(`/chat/group/messages?limit=50&offset=${currentCount}`);
+    const d=await r.json();
+    
+    if(d.success&&d.messages.length>0){
+      // Xóa loader
+      loader.remove();
+      
+      // Thêm messages vào đầu
+      displayMessages(d.messages,false,true);
+      
+      // Cập nhật trạng thái
+      allMessagesLoaded=!d.has_more;
+    }else{
+      loader.remove();
+      allMessagesLoaded=true;
+    }
+  }catch(e){
+    console.error(e);
+    loader.remove();
+  }
+  
+  isLoadingMore=false;
+}
+
+/* === Detect scroll to top === */
+function setupScrollListener(){
+  const c=document.getElementById('chatMessages');
+  c.addEventListener('scroll',()=>{
+    // Nếu scroll gần đầu (trong 100px), load thêm
+    if(c.scrollTop<100&&!isLoadingMore&&!allMessagesLoaded){
+      loadMoreMessages();
+    }
+  });
 }
 
 /* === Gửi tin === */
@@ -202,9 +334,16 @@ chatForm.addEventListener('submit',async e=>{
   if(!fd.get('message')&&!fd.get('attachment').name)return;
   const r=await fetch('/chat/group/send',{method:'POST',body:fd});
   const d=await r.json();
-  if(d.success){chatForm.reset();clearFile();lastMessageCount=0;await refreshMessages();scrollToBottom(true);}
+  if(d.success){chatForm.reset();clearFile();messageInput.style.height='auto';lastMessageCount=0;await refreshMessages();scrollToBottom(true);}
   else{alert('Lỗi: '+(d.error||'Không thể gửi tin nhắn'));}
 });
+
+/* === Auto-resize textarea === */
+function autoResizeTextarea(){
+  messageInput.style.height='auto';
+  messageInput.style.height=Math.min(messageInput.scrollHeight,200)+'px';
+}
+messageInput.addEventListener('input',autoResizeTextarea);
 
 /* === Enter để gửi === */
 messageInput.addEventListener('keydown',e=>{
@@ -245,15 +384,41 @@ function formatTime(iso){
 
 
 /* === Paste & DragDrop === */
-function setupPasteHandler(){[messageInput,chatMessages].forEach(el=>{
-  el.addEventListener('paste',e=>{
+function setupPasteHandler(){
+  // Paste handler for both textarea and chat area
+  const handlePaste=e=>{
     const items=e.clipboardData?.items||[];
-    for(const it of items){if(it.type.includes('image')){e.preventDefault();
-      const blob=it.getAsFile();const dt=new DataTransfer();dt.items.add(new File([blob],`pasted-${Date.now()}.png`,{type:blob.type}));
-      fileInput.files=dt.files;showFilePreview(dt.files[0]);messageInput.focus();break;}
+    for(const it of items){
+      if(it.type.includes('image')){
+        e.preventDefault();
+        const blob=it.getAsFile();
+        const dt=new DataTransfer();
+        dt.items.add(new File([blob],`pasted-${Date.now()}.png`,{type:blob.type}));
+        fileInput.files=dt.files;
+        showFilePreview(dt.files[0]);
+        messageInput.focus();
+        
+        // Show notification
+        const toast=document.createElement('div');
+        toast.style.cssText='position:fixed;top:80px;right:20px;background:#28a745;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;animation:slideIn 0.3s ease';
+        toast.innerHTML='<i class="bi bi-check-circle"></i> Đã dán ảnh từ clipboard';
+        document.body.appendChild(toast);
+        setTimeout(()=>toast.remove(),2000);
+        break;
+      }
+    }
+  };
+  
+  messageInput.addEventListener('paste',handlePaste);
+  chatMessages.addEventListener('paste',handlePaste);
+  
+  // Also handle Ctrl+V globally when chat is focused
+  document.addEventListener('paste',e=>{
+    if(document.activeElement===messageInput||e.target.closest('#chatMessages')){
+      handlePaste(e);
     }
   });
-});}
+}
 function setupDragDropHandler(){[chatMessages,messageInput].forEach(z=>{
   ['dragenter','dragover','dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();}));
   z.addEventListener('drop',e=>{const f=e.dataTransfer.files;if(f.length){fileInput.files=f;showFilePreview(f[0]);messageInput.focus();}});
@@ -393,10 +558,27 @@ function initSocket(){
   }catch(e){console.error('Socket init failed',e);socketReady=false;startPolling();}
 }
 
+/* === Theme change listener === */
+function setupThemeListener(){
+  // Watch for theme changes
+  const observer=new MutationObserver(()=>{
+    // Clear color cache when theme changes
+    userColors={};
+    // Reload messages to apply new colors
+    refreshMessages();
+  });
+  observer.observe(document.documentElement,{
+    attributes:true,
+    attributeFilter:['data-theme']
+  });
+}
+
 /* === Init === */
 document.addEventListener('DOMContentLoaded',()=>{
   setupPasteHandler();
   setupDragDropHandler();
+  setupScrollListener();
+  setupThemeListener();
   initSocket();
   loadMessages();
   setTimeout(()=>{if(!socketReady)startPolling();},1500);

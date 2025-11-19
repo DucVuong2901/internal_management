@@ -2039,17 +2039,28 @@ def chat():
 @app.route('/chat/group/messages')
 @login_required
 def get_group_messages():
-    """API: Lấy tất cả tin nhắn group chat"""
-    messages = chat_storage.get_all_messages()
+    """API: Lấy tất cả tin nhắn group chat (hoặc phân trang)"""
+    # Lấy tham số pagination (nếu có)
+    limit = request.args.get('limit', type=int)  # None = lấy tất cả
+    offset = request.args.get('offset', default=0, type=int)
+    
+    # Lấy messages với pagination
+    messages = chat_storage.get_all_messages(limit=limit, offset=offset)
     
     # Thêm thông tin sender vào mỗi message
     for msg in messages:
         user = user_storage.get_user_by_id(msg['sender_id'])
         msg['sender_name'] = user.username if user else 'Unknown'
     
+    # Lấy tổng số tin nhắn để client biết còn bao nhiêu
+    all_messages = chat_storage.get_all_messages()
+    total_count = len(all_messages)
+    
     return jsonify({
         'success': True,
-        'messages': messages
+        'messages': messages,
+        'total_count': total_count,
+        'has_more': (offset + len(messages)) < total_count
     })
 
 @app.route('/chat/group/send', methods=['POST'])
