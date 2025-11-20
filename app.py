@@ -54,6 +54,9 @@ categories_file = os.path.join(DATA_DIR, 'categories.json')
 # Chat storage
 from chat_storage import ChatStorage
 chat_storage = ChatStorage(data_dir=DATA_DIR)
+# Notification storage
+from notification_storage import NotificationStorage
+notification_storage = NotificationStorage(data_dir=DATA_DIR)
 
 # Scheduled tasks
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -780,6 +783,29 @@ def new_note():
                     'action': 'Tạo mới ghi chú'
                 })
             })
+            
+            # Tạo thông báo cho tất cả users về note mới
+            try:
+                # Tạo tóm tắt nội dung (100 ký tự đầu, loại bỏ HTML)
+                content_text = re.sub(r'<[^>]+>', '', content)
+                content_summary = content_text[:100] + '...' if len(content_text) > 100 else content_text
+                
+                notification = notification_storage.create_notification(
+                    title=f"📝 Note mới: {title}",
+                    message=f"Người tạo: {current_user.username}\nDanh mục: {category}\n\n{content_summary}",
+                    type="info",
+                    user_id=None,  # Broadcast to all users
+                    link=f"/notes/{note.id}/view"
+                )
+                
+                # Emit socket event để notify realtime
+                socketio.emit('new_notification', {
+                    'notification': notification
+                }, broadcast=True)
+            except Exception as e:
+                # Không làm gián đoạn flow nếu tạo notification lỗi
+                app.logger.error(f"Error creating notification for new note: {e}")
+            
             flash('✓ Đã lưu ghi chú thành công!', 'success')
             return redirect(url_for('notes'))
         else:
@@ -1051,6 +1077,29 @@ def new_doc():
                     'action': 'Tạo mới tài liệu'
                 })
             })
+            
+            # Tạo thông báo cho tất cả users về document mới
+            try:
+                # Tạo tóm tắt nội dung (100 ký tự đầu, loại bỏ HTML)
+                content_text = re.sub(r'<[^>]+>', '', content)
+                content_summary = content_text[:100] + '...' if len(content_text) > 100 else content_text
+                
+                notification = notification_storage.create_notification(
+                    title=f"📄 Tài liệu mới: {title}",
+                    message=f"Người tạo: {current_user.username}\nDanh mục: {category}\n\n{content_summary}",
+                    type="success",
+                    user_id=None,  # Broadcast to all users
+                    link=f"/docs/{doc.id}/view"
+                )
+                
+                # Emit socket event để notify realtime
+                socketio.emit('new_notification', {
+                    'notification': notification
+                }, broadcast=True)
+            except Exception as e:
+                # Không làm gián đoạn flow nếu tạo notification lỗi
+                app.logger.error(f"Error creating notification for new document: {e}")
+            
             flash('Tài liệu đã được tạo thành công!', 'success')
             return redirect(url_for('docs'))
         else:
@@ -2213,6 +2262,105 @@ def clear_chat_history(other_user_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==================== NOTIFICATION ROUTES ====================
+
+@app.route('/notifications')
+@login_required
+def get_notifications():
+    """API: Lấy danh sách thông báo của user"""
+    unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+    limit = request.args.get('limit', default=50, type=int)
+    
+    notifications = notification_storage.get_notifications(
+        user_id=current_user.id,
+        unread_only=unread_only,
+        limit=limit
+    )
+    
+    return jsonify({
+        'success': True,
+        'notifications': notifications
+    })
+
+@app.route('/notifications/unread-count')
+@login_required
+def get_unread_notifications_count():
+    """API: Đếm số thông báo chưa đọc"""
+    count = notification_storage.get_unread_count(current_user.id)
+    return jsonify({
+        'success': True,
+        'count': count
+    })
+
+@app.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    """API: Đánh dấu thông báo đã đọc"""
+    success = notification_storage.mark_as_read(notification_id, current_user.id)
+    return jsonify({'success': success})
+
+@app.route('/notifications/mark-all-read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    """API: Đánh dấu tất cả thông báo đã đọc"""
+    count = notification_storage.mark_all_as_read(current_user.id)
+    return jsonify({
+        'success': True,
+        'count': count
+    })
+
+@app.route('/notifications/create', methods=['POST'])
+@login_required
+@admin_required
+def create_notification():
+    """API: Tạo thông báo mới (chỉ admin)"""
+    data = request.get_json()
+    
+    title = data.get('title', '').strip()
+    message = data.get('message', '').strip()
+    type = data.get('type', 'info')
+    user_id = data.get('user_id')  # None = broadcast to all
+    link = data.get('link')
+    
+    if not title or not message:
+        return jsonify({
+            'success': False,
+            'error': 'Tiêu đề và nội dung là bắt buộc'
+        }), 400
+    
+    notification = notification_storage.create_notification(
+        title=title,
+        message=message,
+        type=type,
+        user_id=user_id,
+        link=link
+    )
+    
+    # Emit socket event để notify realtime
+    socketio.emit('new_notification', {
+        'notification': notification
+    }, broadcast=True)
+    
+    return jsonify({
+        'success': True,
+        'notification': notification
+    })
+
+@app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_notification(notification_id):
+    """API: Xóa thông báo (chỉ admin)"""
+    success = notification_storage.delete_notification(notification_id)
+    
+    if success:
+        # Emit socket event
+        socketio.emit('notification_deleted', {
+            'notification_id': notification_id
+        }, broadcast=True)
+    
+    return jsonify({'success': success})
 
 if __name__ == '__main__':
     # Tạo admin mặc định nếu chưa có

@@ -202,12 +202,24 @@
             </div>
             <div class="mini-chat-messages" id="miniChatMessages"></div>
             <div class="mini-chat-input">
-                <form id="miniChatForm" class="d-flex gap-2 align-items-end">
-                    <textarea id="miniMessageInput" class="form-control form-control-sm" placeholder="Nhập tin nhắn... (Shift+Enter để xuống dòng)" autocomplete="off" rows="1" style="resize:none;max-height:100px;overflow-y:auto;"></textarea>
+                <form id="miniChatForm" class="d-flex gap-2 align-items-end" enctype="multipart/form-data">
+                    <div class="position-relative flex-grow-1">
+                        <textarea id="miniMessageInput" class="form-control form-control-sm" placeholder="Nhập tin nhắn..." autocomplete="off" rows="1" style="resize:none;max-height:100px;overflow-y:auto;padding-right:35px;"></textarea>
+                        <button type="button" class="btn btn-sm position-absolute" style="right:2px;bottom:2px;padding:2px 6px;background:transparent;border:none;" onclick="miniFileInput.click()" title="Đính kèm file">
+                            <i class="bi bi-paperclip"></i>
+                        </button>
+                        <input type="file" id="miniFileInput" name="attachment" style="display:none;">
+                    </div>
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="bi bi-send-fill"></i>
                     </button>
                 </form>
+                <div id="miniFilePreview" class="mt-1" style="display:none;">
+                    <small class="text-muted">
+                        <i class="bi bi-paperclip"></i> <span id="miniFileName"></span>
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="clearMiniFile()">Xóa</button>
+                    </small>
+                </div>
             </div>
         </div>
     </div>
@@ -291,6 +303,21 @@
         msgs.forEach(m=>{
             const div=document.createElement('div');
             div.className='mini-message';
+            
+            let bubbleContent='';
+            if(m.message){
+                bubbleContent+=escapeHtml(m.message);
+            }
+            if(m.attachment_filename){
+                const ext=m.attachment_filename.toLowerCase();
+                const isImg=/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(ext);
+                if(isImg){
+                    bubbleContent+=`<div class="mt-1"><img src="/chat/download/${m.attachment_filename}" style="max-width:150px;border-radius:6px;cursor:pointer;" onclick="window.open('/chat/download/${m.attachment_filename}','_blank')"></div>`;
+                }else{
+                    bubbleContent+=`<div class="mt-1"><a href="/chat/download/${m.attachment_filename}" download style="font-size:11px;"><i class="bi bi-file-earmark"></i> ${m.attachment_original_name||m.attachment_filename}</a></div>`;
+                }
+            }
+            
             div.innerHTML=`
                 <div class="mini-message-avatar">${(m.sender_name||'?')[0].toUpperCase()}</div>
                 <div class="mini-message-content">
@@ -298,7 +325,7 @@
                         <span class="mini-message-username">${m.sender_name||'Unknown'}</span>
                         <span class="mini-message-time">${formatMiniTime(m.created_at)}</span>
                     </div>
-                    <div class="mini-message-bubble">${escapeHtml(m.message||'[File đính kèm]')}</div>
+                    <div class="mini-message-bubble">${bubbleContent||'[File đính kèm]'}</div>
                 </div>
             `;
             c.appendChild(div);
@@ -356,11 +383,15 @@
     document.getElementById('miniChatForm')?.addEventListener('submit',async e=>{
         e.preventDefault();
         const input=document.getElementById('miniMessageInput');
+        const fileInput=document.getElementById('miniFileInput');
         const msg=input.value.trim();
-        if(!msg)return;
+        
+        // Phải có message hoặc file
+        if(!msg&&!fileInput.files.length)return;
         
         const fd=new FormData();
-        fd.append('message',msg);
+        if(msg)fd.append('message',msg);
+        if(fileInput.files.length)fd.append('attachment',fileInput.files[0]);
         
         try{
             const r=await fetch('/chat/group/send',{method:'POST',body:fd});
@@ -369,9 +400,12 @@
                 input.value='';
                 input.style.height='auto';
                 input.rows=1;
+                clearMiniFile();
                 loadMiniChatMessages();
+            }else{
+                alert('Lỗi: '+(d.error||'Không thể gửi'));
             }
-        }catch(e){console.error(e);}
+        }catch(e){console.error(e);alert('Lỗi kết nối');}
     });
     
     // Auto-resize textarea và xử lý Enter/Shift+Enter
@@ -388,6 +422,91 @@
     });
     
     document.getElementById('chatToggleBtn')?.addEventListener('click',toggleMiniChat);
+    
+    // File handling for mini chat
+    document.getElementById('miniFileInput')?.addEventListener('change',function(){
+        if(this.files.length){
+            showMiniFilePreview(this.files[0]);
+        }
+    });
+    
+    // Paste image handler for mini chat
+    document.getElementById('miniMessageInput')?.addEventListener('paste',function(e){
+        const items=e.clipboardData?.items||[];
+        for(const item of items){
+            if(item.type.includes('image')){
+                e.preventDefault();
+                const blob=item.getAsFile();
+                const dt=new DataTransfer();
+                dt.items.add(new File([blob],`pasted-${Date.now()}.png`,{type:blob.type}));
+                document.getElementById('miniFileInput').files=dt.files;
+                showMiniFilePreview(dt.files[0]);
+                
+                // Show toast notification
+                const toast=document.createElement('div');
+                toast.style.cssText='position:fixed;top:80px;right:20px;background:#28a745;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;';
+                toast.innerHTML='<i class="bi bi-check-circle"></i> Đã dán ảnh từ clipboard';
+                document.body.appendChild(toast);
+                setTimeout(()=>toast.remove(),2000);
+                break;
+            }
+        }
+    });
+    
+    function showMiniFilePreview(file){
+        const preview=document.getElementById('miniFilePreview');
+        const fileName=document.getElementById('miniFileName');
+        fileName.textContent=file.name;
+        preview.style.display='block';
+    }
+    
+    function clearMiniFile(){
+        const fileInput=document.getElementById('miniFileInput');
+        const preview=document.getElementById('miniFilePreview');
+        if(fileInput)fileInput.value='';
+        if(preview)preview.style.display='none';
+    }
+    
+    // Drag & Drop handler for mini chat
+    function setupMiniChatDragDrop(){
+        const miniMessages=document.getElementById('miniChatMessages');
+        const miniInput=document.getElementById('miniMessageInput');
+        
+        [miniMessages,miniInput].forEach(el=>{
+            if(!el)return;
+            
+            ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+                el.addEventListener(ev,e=>{
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            
+            el.addEventListener('drop',e=>{
+                const files=e.dataTransfer.files;
+                if(files.length){
+                    document.getElementById('miniFileInput').files=files;
+                    showMiniFilePreview(files[0]);
+                    
+                    // Show toast
+                    const toast=document.createElement('div');
+                    toast.style.cssText='position:fixed;top:80px;right:20px;background:#28a745;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;';
+                    toast.innerHTML='<i class="bi bi-check-circle"></i> Đã thêm file';
+                    document.body.appendChild(toast);
+                    setTimeout(()=>toast.remove(),2000);
+                }
+            });
+        });
+    }
+    
+    // Setup drag & drop when mini chat opens
+    const originalToggleMiniChat=toggleMiniChat;
+    toggleMiniChat=function(){
+        originalToggleMiniChat();
+        if(miniChatOpen){
+            setTimeout(setupMiniChatDragDrop,100);
+        }
+    };
     
     async function updateFloatingBadge(){
         try{

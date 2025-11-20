@@ -6,7 +6,8 @@
 <style>
 /* ==== Base & Layout ==== */
 footer{display:none!important}
-.chat-container{display:flex;background:#f8f9fa;transition:background-color .3s ease;height:100%;padding:20px}
+.chat-container{display:flex;background:#f8f9fa;transition:background-color .3s ease;height:100%;padding:20px;gap:20px}
+.notification-panel{width:320px;background:white;border:2px solid #e0e0e0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden;transition:background-color .3s ease}
 .chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%;max-width:1200px;margin:0 auto;width:100%;border:2px solid #e0e0e0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
 .chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;background:#f8f9fa;transition:background-color .3s ease;height:0}
 .message{display:flex;margin-bottom:16px;align-items:flex-start}
@@ -46,6 +47,33 @@ footer{display:none!important}
 [data-theme="dark"] #messageInput{background:#3a3a3a;color:#e9ecef;border-color:#495057}
 [data-theme="dark"] #messageInput::placeholder{color:#adb5bd}
 
+/* ==== Notification Panel ==== */
+.notification-header{padding:16px;border-bottom:2px solid #e0e0e0;background:#fff;border-top-left-radius:14px;border-top-right-radius:14px;display:flex;justify-content:space-between;align-items:center}
+.notification-header h6{margin:0;font-weight:600;font-size:16px;color:#495057}
+.notification-list{flex:1;overflow-y:auto;padding:12px}
+.notification-item{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .2s ease;position:relative}
+.notification-item:hover{box-shadow:0 2px 8px rgba(0,0,0,0.1);transform:translateY(-1px)}
+.notification-item.unread{border-left:4px solid #667eea;background:#f8f9ff}
+.notification-item.unread::before{content:'';position:absolute;top:12px;right:12px;width:8px;height:8px;background:#667eea;border-radius:50%}
+.notification-title{font-weight:600;font-size:14px;margin-bottom:4px;color:#212529}
+.notification-message{font-size:13px;color:#6c757d;line-height:1.4;margin-bottom:6px}
+.notification-time{font-size:11px;color:#adb5bd}
+.notification-type-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-bottom:6px}
+.notification-type-info{background:#d1ecf1;color:#0c5460}
+.notification-type-success{background:#d4edda;color:#155724}
+.notification-type-warning{background:#fff3cd;color:#856404}
+.notification-type-danger{background:#f8d7da;color:#721c24}
+.notification-empty{text-align:center;padding:40px 20px;color:#adb5bd}
+.notification-actions{padding:12px;border-top:1px solid #e0e0e0;display:flex;gap:8px}
+[data-theme="dark"] .notification-panel{background:#2d2d2d;border-color:#404040}
+[data-theme="dark"] .notification-header{background:#2d2d2d;border-bottom-color:#404040}
+[data-theme="dark"] .notification-header h6{color:#e9ecef}
+[data-theme="dark"] .notification-item{background:#3a3a3a;border-color:#495057}
+[data-theme="dark"] .notification-item.unread{background:#2c3e50;border-left-color:#667eea}
+[data-theme="dark"] .notification-title{color:#e9ecef}
+[data-theme="dark"] .notification-message{color:#adb5bd}
+@media(max-width:992px){.notification-panel{display:none}}
+
 /* ==== Loading Spinner ==== */
 @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .spin{animation:spin 1s linear infinite}
@@ -58,6 +86,30 @@ footer{display:none!important}
 
 {% block content %}
 <div class="chat-container" style="position:fixed;top:56px;left:0;right:0;bottom:0;">
+  <!-- Notification Panel -->
+  <div class="notification-panel">
+    <div class="notification-header">
+      <h6><i class="bi bi-bell-fill"></i> Thông báo</h6>
+      <span class="badge bg-primary" id="notificationCount">0</span>
+    </div>
+    <div class="notification-list" id="notificationList">
+      <div class="notification-empty">
+        <i class="bi bi-bell" style="font-size:48px;opacity:0.3"></i>
+        <p class="mt-2">Chưa có thông báo</p>
+      </div>
+    </div>
+    <div class="notification-actions">
+      <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="markAllNotificationsRead()" title="Đánh dấu tất cả đã đọc">
+        <i class="bi bi-check-all"></i>
+      </button>
+      {% if current_user.role == 'admin' %}
+      <button class="btn btn-sm btn-outline-primary flex-fill" onclick="showCreateNotificationModal()" title="Tạo thông báo">
+        <i class="bi bi-plus-lg"></i>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  
   <!-- Main chat -->
   <div class="chat-main d-flex flex-column">
     <div class="chat-header p-3 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
@@ -555,6 +607,13 @@ function initSocket(){
       document.getElementById('chatMessages').innerHTML='';
       alert('⚠️ Lịch sử chat đã bị xóa bởi admin');
     });
+    socket.on('new_notification',(data)=>{
+      loadNotifications();
+      showToast('🔔 '+data.notification.title,'info');
+    });
+    socket.on('notification_deleted',(data)=>{
+      loadNotifications();
+    });
   }catch(e){console.error('Socket init failed',e);socketReady=false;startPolling();}
 }
 
@@ -573,6 +632,170 @@ function setupThemeListener(){
   });
 }
 
+/* === Notifications === */
+async function loadNotifications(){
+  try{
+    const r=await fetch('/notifications');
+    const d=await r.json();
+    if(d.success){
+      displayNotifications(d.notifications);
+      updateNotificationCount();
+    }
+  }catch(e){console.error('Error loading notifications:',e);}
+}
+
+function displayNotifications(notifications){
+  const list=document.getElementById('notificationList');
+  if(!notifications||notifications.length===0){
+    list.innerHTML=`
+      <div class="notification-empty">
+        <i class="bi bi-bell" style="font-size:48px;opacity:0.3"></i>
+        <p class="mt-2">Chưa có thông báo</p>
+      </div>
+    `;
+    return;
+  }
+  
+  list.innerHTML='';
+  notifications.forEach(n=>{
+    const isUnread=!n.read_by.includes({{ current_user.id }});
+    const div=document.createElement('div');
+    div.className='notification-item'+(isUnread?' unread':'');
+    div.onclick=()=>handleNotificationClick(n.id,n.link);
+    
+    const typeClass='notification-type-'+n.type;
+    const typeLabel={'info':'Thông tin','success':'Thành công','warning':'Cảnh báo','danger':'Quan trọng'}[n.type]||'Thông tin';
+    
+    div.innerHTML=`
+      <div class="notification-type-badge ${typeClass}">${typeLabel}</div>
+      <div class="notification-title">${escapeHtml(n.title)}</div>
+      <div class="notification-message">${escapeHtml(n.message)}</div>
+      <div class="notification-time">${formatTime(n.created_at)}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function handleNotificationClick(notificationId,link){
+  try{
+    await fetch(`/notifications/${notificationId}/read`,{method:'POST'});
+    loadNotifications();
+    if(link){
+      window.location.href=link;
+    }
+  }catch(e){console.error(e);}
+}
+
+async function updateNotificationCount(){
+  try{
+    const r=await fetch('/notifications/unread-count');
+    const d=await r.json();
+    const badge=document.getElementById('notificationCount');
+    if(d.success&&badge){
+      badge.textContent=d.count;
+      badge.className=d.count>0?'badge bg-danger':'badge bg-secondary';
+    }
+  }catch(e){console.error(e);}
+}
+
+async function markAllNotificationsRead(){
+  try{
+    const r=await fetch('/notifications/mark-all-read',{method:'POST'});
+    const d=await r.json();
+    if(d.success){
+      loadNotifications();
+      showToast('✓ Đã đánh dấu tất cả thông báo đã đọc','success');
+    }
+  }catch(e){console.error(e);}
+}
+
+function showCreateNotificationModal(){
+  const modal=document.createElement('div');
+  modal.className='modal fade show d-block';
+  modal.style.backgroundColor='rgba(0,0,0,0.5)';
+  modal.innerHTML=`
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Tạo thông báo</h5>
+          <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createNotificationForm">
+            <div class="mb-3">
+              <label class="form-label">Tiêu đề</label>
+              <input type="text" class="form-control" id="notifTitle" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nội dung</label>
+              <textarea class="form-control" id="notifMessage" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Loại</label>
+              <select class="form-select" id="notifType">
+                <option value="info">Thông tin</option>
+                <option value="success">Thành công</option>
+                <option value="warning">Cảnh báo</option>
+                <option value="danger">Quan trọng</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Link (tùy chọn)</label>
+              <input type="text" class="form-control" id="notifLink" placeholder="/dashboard">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Hủy</button>
+          <button type="button" class="btn btn-primary" onclick="createNotification()">Tạo thông báo</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function createNotification(){
+  const title=document.getElementById('notifTitle').value.trim();
+  const message=document.getElementById('notifMessage').value.trim();
+  const type=document.getElementById('notifType').value;
+  const link=document.getElementById('notifLink').value.trim()||null;
+  
+  if(!title||!message){
+    showToast('Vui lòng nhập đầy đủ thông tin','warning');
+    return;
+  }
+  
+  try{
+    const r=await fetch('/notifications/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title,message,type,link})
+    });
+    const d=await r.json();
+    if(d.success){
+      showToast('✓ Đã tạo thông báo','success');
+      document.querySelector('.modal').remove();
+      loadNotifications();
+    }else{
+      showToast('✗ '+d.error,'danger');
+    }
+  }catch(e){
+    showToast('✗ Lỗi: '+e.message,'danger');
+  }
+}
+
+function showToast(message,type){
+  const toast=document.createElement('div');
+  toast.style.cssText='position:fixed;top:80px;right:20px;padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;animation:slideIn 0.3s ease';
+  const colors={'success':'#28a745','danger':'#dc3545','warning':'#ffc107','info':'#17a2b8'};
+  toast.style.background=colors[type]||colors.info;
+  toast.style.color='white';
+  toast.innerHTML=message;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(),3000);
+}
+
 /* === Init === */
 document.addEventListener('DOMContentLoaded',()=>{
   setupPasteHandler();
@@ -581,6 +804,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   setupThemeListener();
   initSocket();
   loadMessages();
+  loadNotifications();
+  setInterval(updateNotificationCount,30000);
   setTimeout(()=>{if(!socketReady)startPolling();},1500);
 });
 </script>
