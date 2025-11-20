@@ -66,6 +66,15 @@ data/uploads/**
 !data/uploads/notes/.gitkeep
 !data/uploads/docs/.gitkeep
 
+# Chat data - KHÔNG commit tin nhắn và file đính kèm
+data/chat_messages.json
+data/chat_storage_info.json
+data/chat_uploads/**
+!data/chat_uploads/.gitkeep
+
+# Notification data - KHÔNG commit thông báo
+data/notifications.json
+
 # Old uploads directory (deprecated)
 uploads/**
 

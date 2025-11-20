@@ -102,11 +102,9 @@ footer{display:none!important}
       <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="markAllNotificationsRead()" title="Đánh dấu tất cả đã đọc">
         <i class="bi bi-check-all"></i>
       </button>
-      {% if current_user.role == 'admin' %}
       <button class="btn btn-sm btn-outline-primary flex-fill" onclick="showCreateNotificationModal()" title="Tạo thông báo">
         <i class="bi bi-plus-lg"></i>
       </button>
-      {% endif %}
     </div>
   </div>
   

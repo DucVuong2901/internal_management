@@ -2152,6 +2152,26 @@ def send_group_message():
         except:
             pass
         
+        # Tạo thông báo tự động cho tin nhắn mới
+        try:
+            # Tạo nội dung thông báo
+            msg_preview = message[:100] if message else '[File đính kèm]'
+            if attachment and attachment.filename:
+                msg_preview = f"{msg_preview} 📎 {attachment.filename}" if message else f"📎 {attachment.filename}"
+            
+            notification_storage.create_notification(
+                title=f"💬 Tin nhắn mới từ {current_user.username}",
+                message=msg_preview,
+                type='info',
+                link='/chat',
+                creator_id=current_user.id
+            )
+            
+            # Emit notification event
+            socketio.emit('new_notification', {}, broadcast=True)
+        except Exception as e:
+            app.logger.error(f"Failed to create chat notification: {e}")
+        
         return jsonify({
             'success': True,
             'message': new_message
