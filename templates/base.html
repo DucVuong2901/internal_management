@@ -315,8 +315,9 @@
         const uid={{ current_user.id }};
         c.innerHTML='';
         msgs.forEach(m=>{
+            const isMine = m.sender_id == uid;
             const div=document.createElement('div');
-            div.className='mini-message';
+            div.className = isMine ? 'mini-message mini-message-sent' : 'mini-message mini-message-received';
             
             let bubbleContent='';
             if(m.message){
@@ -332,16 +333,27 @@
                 }
             }
             
-            div.innerHTML=`
-                <div class="mini-message-avatar">${(m.sender_name||'?')[0].toUpperCase()}</div>
-                <div class="mini-message-content">
-                    <div class="mini-message-header">
-                        <span class="mini-message-username">${m.sender_name||'Unknown'}</span>
-                        <span class="mini-message-time">${formatMiniTime(m.created_at)}</span>
+            if(isMine){
+                // Tin nhắn của mình - bên phải
+                div.innerHTML=`
+                    <div class="mini-message-content">
+                        <div class="mini-message-time-only">${formatMiniTime(m.created_at)}</div>
+                        <div class="mini-message-bubble">${bubbleContent||'[File đính kèm]'}</div>
                     </div>
-                    <div class="mini-message-bubble">${bubbleContent||'[File đính kèm]'}</div>
-                </div>
-            `;
+                `;
+            }else{
+                // Tin nhắn người khác - bên trái
+                div.innerHTML=`
+                    <div class="mini-message-avatar">${(m.sender_name||'?')[0].toUpperCase()}</div>
+                    <div class="mini-message-content">
+                        <div class="mini-message-header">
+                            <span class="mini-message-username">${m.sender_name||'Unknown'}</span>
+                            <span class="mini-message-time">${formatMiniTime(m.created_at)}</span>
+                        </div>
+                        <div class="mini-message-bubble">${bubbleContent||'[File đính kèm]'}</div>
+                    </div>
+                `;
+            }
             c.appendChild(div);
         });
         c.scrollTop=c.scrollHeight;
@@ -349,7 +361,9 @@
     }
     
     function formatMiniTime(iso){
-        const d=new Date(iso);
+        // Parse ISO string - nếu không có 'Z' thì thêm vào để đảm bảo parse UTC
+        const isoWithZ = iso.endsWith('Z') ? iso : iso + 'Z';
+        const d=new Date(isoWithZ);
         const diff=Date.now()-d.getTime();
         
         // < 1 phút

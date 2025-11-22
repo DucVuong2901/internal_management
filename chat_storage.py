@@ -25,6 +25,9 @@ class ChatStorage:
         if not os.path.exists(self.chat_file):
             self._save_messages([])
         
+        # Migrate tin nhắn cũ sang UTC (chỉ chạy 1 lần)
+        self._migrate_to_utc()
+        
         # Tự động xóa tin nhắn cũ khi khởi tạo
         self._cleanup_old_messages()
     
@@ -40,6 +43,33 @@ class ChatStorage:
         """Lưu messages vào JSON"""
         with open(self.chat_file, 'w', encoding='utf-8') as f:
             json.dump(messages, f, ensure_ascii=False, indent=2)
+    
+    def _migrate_to_utc(self):
+        """Migrate tin nhắn cũ: chuyển created_at từ local time sang UTC"""
+        try:
+            messages = self._load_messages()
+            updated = False
+            
+            for msg in messages:
+                created_at = msg.get('created_at', '')
+                # Nếu created_at không có 'Z' và không có timezone info
+                if created_at and not created_at.endswith('Z') and '+' not in created_at:
+                    try:
+                        # Parse as naive datetime (assume local time)
+                        dt = datetime.fromisoformat(created_at)
+                        # Convert to UTC (giả sử local time là UTC+7)
+                        # Trừ đi 7 giờ để về UTC
+                        dt_utc = dt - timedelta(hours=7)
+                        msg['created_at'] = dt_utc.isoformat()
+                        updated = True
+                    except:
+                        pass
+            
+            if updated:
+                self._save_messages(messages)
+                print(f"✓ Migrated {len(messages)} messages to UTC format")
+        except Exception as e:
+            print(f"Migration error: {e}")
     
     def _cleanup_old_messages(self):
         """Tự động xóa tin nhắn cũ hơn MESSAGE_RETENTION_HOURS giờ"""
@@ -109,7 +139,7 @@ class ChatStorage:
             'attachment_original_name': attachment_original_name,
             'is_read': False,  # Backward compatibility
             'read_by': [],  # List of user IDs who have read this message
-            'created_at': datetime.now().isoformat()
+            'created_at': datetime.utcnow().isoformat()
         }
         
         messages.append(new_message)

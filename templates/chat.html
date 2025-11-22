@@ -10,15 +10,22 @@ footer{display:none!important}
 .notification-panel{width:320px;background:white;border:2px solid #e0e0e0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden;transition:background-color .3s ease}
 .chat-main{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;transition:background-color .3s ease;height:100%;max-width:1200px;margin:0 auto;width:100%;border:2px solid #e0e0e0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
 .chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;background:#f8f9fa;transition:background-color .3s ease;height:0}
-.message{display:flex;margin-bottom:16px;align-items:flex-start}
-.message-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0;margin-right:12px}
-.message-content{flex:1}
-.message-header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
-.message-username{font-weight:600;font-size:14px;color:#495057}
+
+/* ==== Chat Bubble Style ==== */
+.message{display:flex;margin-bottom:16px;align-items:flex-end;gap:10px}
+.message.received{flex-direction:row;justify-content:flex-start}
+.message.sent{flex-direction:row-reverse;justify-content:flex-start}
+.message-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0}
+.message-content{max-width:60%;display:flex;flex-direction:column}
+.message.sent .message-content{align-items:flex-end}
+.message.received .message-content{align-items:flex-start}
+.message-header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-size:12px}
+.message-username{font-weight:600;color:#495057}
 .message-time{font-size:11px;color:#6c757d}
-.message-bubble{padding:10px 14px;border-radius:12px;background:#fff;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:background-color .3s ease,color .3s ease;word-wrap:break-word;white-space:pre-wrap}
-.message.sent .message-avatar{background:linear-gradient(135deg,#28a745,#20c997)}
-.message.sent .message-bubble{background:#e3f2fd}
+.message-time-only{font-size:11px;color:#6c757d;margin-bottom:4px}
+.message-bubble{padding:10px 14px;border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,0.1);word-wrap:break-word;white-space:pre-wrap;line-height:1.5}
+.message.received .message-bubble{background:#e9ecef;color:#212529;border-bottom-left-radius:4px}
+.message.sent .message-bubble{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-bottom-right-radius:4px}
 .message-text{line-height:1.5;word-break:break-word}
 .chat-header{border-top-left-radius:14px;border-top-right-radius:14px;border-bottom:2px solid #e0e0e0!important;background:#fff!important}
 .chat-input-area{padding:20px;padding-bottom:25px;border-top:2px solid #e0e0e6;background:#fff;flex-shrink:0;z-index:10;transition:all .3s ease;border-bottom-left-radius:14px;border-bottom-right-radius:14px}
@@ -36,14 +43,13 @@ footer{display:none!important}
 [data-theme="dark"] .chat-container{background:#1a1a1a}
 [data-theme="dark"] .chat-main{background:#1a1a1a;border-color:#404040;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
 [data-theme="dark"] .chat-messages{background:#1a1a1a}
-[data-theme="dark"] .message-bubble{background:#3a3a3a;color:#e9ecef!important}
-[data-theme="dark"] .message.sent .message-bubble{background:#2c5282;color:#e9ecef!important}
-[data-theme="dark"] .message.received .message-bubble{color:#e9ecef!important}
-[data-theme="dark"] .message-text{color:#e9ecef!important}
+[data-theme="dark"] .message.received .message-bubble{background:#3a3a3a;color:#e9ecef!important}
+[data-theme="dark"] .message.sent .message-bubble{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff!important}
+[data-theme="dark"] .message-text{color:inherit!important}
 [data-theme="dark"] .chat-input-area{background:#2d2d2d;border-top-color:#404040}
 [data-theme="dark"] .chat-header{background:#2d2d2d!important;border-bottom-color:#404040!important}
-[data-theme="dark"] .message-username{color:#e9ecef}
-[data-theme="dark"] .message-time{color:#adb5bd}
+[data-theme="dark"] .message-username{color:#adb5bd}
+[data-theme="dark"] .message-time,[data-theme="dark"] .message-time-only{color:#6c757d}
 [data-theme="dark"] #messageInput{background:#3a3a3a;color:#e9ecef;border-color:#495057}
 [data-theme="dark"] #messageInput::placeholder{color:#adb5bd}
 
@@ -229,42 +235,18 @@ function displayMessages(msgs,forceScroll=false,prepend=false){
   
   if(!prepend)c.innerHTML='';
   msgs.forEach(m=>{
+    const isMine = m.sender_id==uid;
     const wrap=document.createElement('div');
-    wrap.className=m.sender_id==uid?'message sent':'message received';
-    
-    // Avatar with user color
-    const avatar=document.createElement('div');
-    avatar.className='message-avatar';
-    avatar.textContent=(m.sender_name||'?')[0].toUpperCase();
-    if(m.sender_id!=uid){
-      avatar.style.background=getUserColor(m.sender_id);
-    }
-    wrap.appendChild(avatar);
+    wrap.className=isMine?'message sent':'message received';
     
     // Content
     const content=document.createElement('div');
     content.className='message-content';
     
-    // Header (username + time)
-    const header=document.createElement('div');
-    header.className='message-header';
-    const username=document.createElement('span');
-    username.className='message-username';
-    username.textContent=m.sender_name||'Unknown';
-    const time=document.createElement('span');
-    time.className='message-time';
-    time.textContent=formatTime(m.created_at);
-    header.appendChild(username);
-    header.appendChild(time);
-    content.appendChild(header);
-    
-    // Bubble with user color
+    // Bubble
     const b=document.createElement('div');
     b.className='message-bubble';
-    if(m.sender_id!=uid){
-      b.style.backgroundColor=getUserColorLight(m.sender_id);
-      b.style.borderLeft=`3px solid ${getUserColor(m.sender_id)}`;
-    }
+    
     if(m.message){b.innerHTML+=`<div class='message-text'>${escapeHtml(m.message)}</div>`;}
     if(m.attachment_filename){
       const ext=m.attachment_filename.toLowerCase();
@@ -275,8 +257,38 @@ function displayMessages(msgs,forceScroll=false,prepend=false){
         b.innerHTML+=`<div class="message-attachment mt-2"><i class="bi bi-file-earmark"></i> <a href="/chat/download/${m.attachment_filename}" download>${m.attachment_original_name||m.attachment_filename}</a></div>`;
       }
     }
-    content.appendChild(b);
-    wrap.appendChild(content);
+    
+    if(isMine){
+      // Tin nhắn của mình - bên phải
+      const timeOnly=document.createElement('div');
+      timeOnly.className='message-time-only';
+      timeOnly.textContent=formatTime(m.created_at);
+      content.appendChild(timeOnly);
+      content.appendChild(b);
+      wrap.appendChild(content);
+    }else{
+      // Tin nhắn người khác - bên trái
+      const avatar=document.createElement('div');
+      avatar.className='message-avatar';
+      avatar.textContent=(m.sender_name||'?')[0].toUpperCase();
+      avatar.style.background=getUserColor(m.sender_id);
+      wrap.appendChild(avatar);
+      
+      const header=document.createElement('div');
+      header.className='message-header';
+      const username=document.createElement('span');
+      username.className='message-username';
+      username.textContent=m.sender_name||'Unknown';
+      const time=document.createElement('span');
+      time.className='message-time';
+      time.textContent=formatTime(m.created_at);
+      header.appendChild(username);
+      header.appendChild(time);
+      content.appendChild(header);
+      content.appendChild(b);
+      wrap.appendChild(content);
+    }
+    
     if(prepend){
       c.insertBefore(wrap,c.firstChild);
     }else{
@@ -410,7 +422,9 @@ function showFilePreview(f){fileName.textContent=f.name;filePreview.style.displa
 
 /* === Format thời gian === */
 function formatTime(iso){
-  const d=new Date(iso);
+  // Parse ISO string - nếu không có 'Z' thì thêm vào để đảm bảo parse UTC
+  const isoWithZ = iso.endsWith('Z') ? iso : iso + 'Z';
+  const d=new Date(isoWithZ);
   const diff=Date.now()-d.getTime();
   
   // < 1 phút

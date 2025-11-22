@@ -596,3 +596,110 @@ footer {
     transition: none !important;
 }
 
+/* === Mini Chat Widget - Chat Bubble Style === */
+.mini-message {
+    display: flex;
+    margin-bottom: 12px;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.mini-message-received {
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+.mini-message-sent {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+}
+
+.mini-message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.mini-message-content {
+    max-width: 70%;
+    display: flex;
+    flex-direction: column;
+}
+
+.mini-message-sent .mini-message-content {
+    align-items: flex-end;
+}
+
+.mini-message-received .mini-message-content {
+    align-items: flex-start;
+}
+
+.mini-message-header {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 2px;
+    font-size: 11px;
+}
+
+.mini-message-username {
+    font-weight: 600;
+    color: #495057;
+}
+
+.mini-message-time {
+    font-size: 10px;
+    color: #6c757d;
+}
+
+.mini-message-time-only {
+    font-size: 10px;
+    color: #6c757d;
+    margin-bottom: 2px;
+}
+
+.mini-message-bubble {
+    padding: 8px 12px;
+    border-radius: 16px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mini-message-received .mini-message-bubble {
+    background: #e9ecef;
+    color: #212529;
+    border-bottom-left-radius: 4px;
+}
+
+.mini-message-sent .mini-message-bubble {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+/* Dark mode */
+[data-theme="dark"] .mini-message-received .mini-message-bubble {
+    background: #3a3a3a;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .mini-message-username {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] .mini-message-time,
+[data-theme="dark"] .mini-message-time-only {
+    color: #6c757d;
+}
+
