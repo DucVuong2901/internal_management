@@ -206,7 +206,8 @@ function handlePaste(e) {
                 img.style.height = 'auto';
                 img.style.display = 'block';
                 img.style.margin = '10px 0';
-                img.className = 'img-fluid';
+                img.className = 'img-fluid resizable-image';
+                img.draggable = false;
                 
                 // Chèn hình ảnh vào vị trí con trỏ
                 const selection = window.getSelection();
@@ -831,6 +832,258 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Resizable Image Style */
+.resizable-image {
+    cursor: move;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    margin: 10px;
+    max-width: 100%;
+    height: auto;
+}
+
+.resizable-image:hover,
+.resizable-image.selected {
+    border-color: #0d6efd;
+}
+
+.resizable-image.selected {
+    position: relative;
+}
+
+.resizable-image.selected::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    width: 10px;
+    height: 10px;
+    background: #0d6efd;
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Float options for image positioning */
+.resizable-image.float-free {
+    float: left;
+    margin: 10px 15px 10px 0;
+    position: relative;
+}
+
+.resizable-image.float-left {
+    float: left;
+    margin-right: 15px;
+    position: static;
+}
+
+.resizable-image.float-right {
+    float: right;
+    margin-left: 15px;
+    position: static;
+}
+
+.resizable-image.float-none {
+    float: none;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    position: static;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+    
+    let selectedImage = null;
+    let isResizing = false;
+    let isDragging = false;
+    let startX, startY, startWidth, startHeight;
+    let dragOffsetX, dragOffsetY;
+    
+    // Make existing images resizable
+    function makeImagesResizable() {
+        const images = editor.querySelectorAll('img');
+        images.forEach(img => {
+            if (!img.classList.contains('resizable-image')) {
+                img.classList.add('resizable-image');
+                img.draggable = false;
+                // Set default float-free if no float class
+                if (!img.classList.contains('float-left') && 
+                    !img.classList.contains('float-right') && 
+                    !img.classList.contains('float-none') &&
+                    !img.classList.contains('float-free')) {
+                    img.classList.add('float-free');
+                }
+            }
+        });
+    }
+    
+    // Call on load
+    makeImagesResizable();
+    
+    // Observer to make new images resizable
+    const observer = new MutationObserver(makeImagesResizable);
+    observer.observe(editor, { childList: true, subtree: true });
+    
+    // Click to select image
+    editor.addEventListener('click', function(e) {
+        if (e.target.tagName === 'IMG' && e.target.classList.contains('resizable-image')) {
+            // Deselect previous
+            if (selectedImage) {
+                selectedImage.classList.remove('selected');
+            }
+            // Select new
+            selectedImage = e.target;
+            selectedImage.classList.add('selected');
+            showImageMenu(selectedImage);
+        } else {
+            // Deselect if click outside
+            if (selectedImage) {
+                selectedImage.classList.remove('selected');
+                selectedImage = null;
+                hideImageMenu();
+            }
+        }
+    });
+    
+    // Show image positioning menu
+    function showImageMenu(img) {
+        hideImageMenu(); // Remove old menu first
+        
+        const menu = document.createElement('div');
+        menu.id = 'imagePositionMenu';
+        menu.style.cssText = 'position:absolute;background:white;border:1px solid #ddd;border-radius:6px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1000;display:flex;gap:4px;';
+        
+        const rect = img.getBoundingClientRect();
+        const editorRect = editor.getBoundingClientRect();
+        menu.style.left = (rect.left - editorRect.left) + 'px';
+        menu.style.top = (rect.top - editorRect.top - 40) + 'px';
+        
+        const positions = [
+            {label: '🎯 Tự do', class: 'float-free', title: 'Kéo thả tự do'},
+            {label: '⬅️ Trái', class: 'float-left', title: 'Text bao quanh bên phải'},
+            {label: '⬆️ Giữa', class: 'float-none', title: 'Căn giữa'},
+            {label: '➡️ Phải', class: 'float-right', title: 'Text bao quanh bên trái'}
+        ];
+        
+        positions.forEach(pos => {
+            const btn = document.createElement('button');
+            btn.textContent = pos.label;
+            btn.title = pos.title;
+            btn.style.cssText = 'padding:4px 8px;border:1px solid #ddd;background:white;border-radius:4px;cursor:pointer;font-size:12px;';
+            btn.onmouseover = () => btn.style.background = '#f0f0f0';
+            btn.onmouseout = () => btn.style.background = 'white';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                img.classList.remove('float-left', 'float-right', 'float-none');
+                img.classList.add(pos.class);
+                hideImageMenu();
+            };
+            menu.appendChild(btn);
+        });
+        
+        editor.style.position = 'relative';
+        editor.appendChild(menu);
+    }
+    
+    function hideImageMenu() {
+        const menu = document.getElementById('imagePositionMenu');
+        if (menu) menu.remove();
+    }
+    
+    // Start resize or drag
+    editor.addEventListener('mousedown', function(e) {
+        if (!selectedImage) return;
+        
+        const rect = selectedImage.getBoundingClientRect();
+        const handleSize = 10;
+        const isNearHandle = (
+            e.clientX >= rect.right - handleSize &&
+            e.clientX <= rect.right + handleSize &&
+            e.clientY >= rect.bottom - handleSize &&
+            e.clientY <= rect.bottom + handleSize
+        );
+        
+        if (isNearHandle) {
+            // Resize
+            e.preventDefault();
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = selectedImage.offsetWidth;
+            startHeight = selectedImage.offsetHeight;
+            document.body.style.cursor = 'nwse-resize';
+        } else if (e.target === selectedImage && selectedImage.classList.contains('float-free')) {
+            // Drag (only for float-free)
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const currentLeft = parseInt(selectedImage.style.left) || 0;
+            const currentTop = parseInt(selectedImage.style.top) || 0;
+            
+            dragOffsetX = currentLeft;
+            dragOffsetY = currentTop;
+            
+            document.body.style.cursor = 'move';
+        }
+    });
+    
+    // Resize or Drag
+    document.addEventListener('mousemove', function(e) {
+        if (isResizing && selectedImage) {
+            // Resize
+            const deltaX = e.clientX - startX;
+            
+            // Calculate new width (maintain aspect ratio)
+            const newWidth = Math.max(50, startWidth + deltaX);
+            
+            selectedImage.style.width = newWidth + 'px';
+            selectedImage.style.height = 'auto';
+            selectedImage.style.maxWidth = '100%';
+        } else if (isDragging && selectedImage) {
+            // Drag (only for float-free)
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            const newLeft = dragOffsetX + deltaX;
+            const newTop = dragOffsetY + deltaY;
+            
+            selectedImage.style.left = newLeft + 'px';
+            selectedImage.style.top = newTop + 'px';
+        }
+    });
+    
+    // End resize or drag
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+        }
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.cursor = '';
+        }
+    });
+    
+    // Delete image with Delete key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Delete' && selectedImage) {
+            selectedImage.remove();
+            selectedImage = null;
+        }
+    });
+});
+</script>
 {% endblock %}
 
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
