@@ -100,12 +100,21 @@
                 
                 <!-- User Menu -->
                 <div class="dropdown">
-                    <button class="btn btn-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                    <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                        {% if current_user.avatar %}
+                        <img src="{{ url_for('get_avatar', filename=current_user.avatar) }}" 
+                             class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                        {% else %}
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                             style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-size: 14px; font-weight: bold;">
+                            {{ current_user.username[0].upper() }}
+                        </div>
+                        {% endif %}
+                        <span>{{ current_user.username }}</span>
                         {% if current_user.role == 'admin' %}
-                        <span class="badge bg-danger ms-1">Admin</span>
+                        <span class="badge bg-danger">Admin</span>
                         {% elif current_user.role == 'viewer' %}
-                        <span class="badge bg-info ms-1">Viewer</span>
+                        <span class="badge bg-info">Viewer</span>
                         {% endif %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -114,14 +123,19 @@
                         </span></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <button class="dropdown-item" type="button" id="darkModeToggleDropdown">
-                                <i class="bi bi-moon-stars" id="darkModeIconDropdown"></i> <span id="darkModeTextDropdown">Chế độ tối</span>
-                            </button>
+                            <a class="dropdown-item" href="{{ url_for('profile') }}">
+                                <i class="bi bi-person-circle"></i> Hồ sơ cá nhân
+                            </a>
                         </li>
                         <li>
                             <a class="dropdown-item" href="{{ url_for('change_password') }}">
                                 <i class="bi bi-key"></i> Đổi mật khẩu
                             </a>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" type="button" id="darkModeToggleDropdown">
+                                <i class="bi bi-moon-stars" id="darkModeIconDropdown"></i> <span id="darkModeTextDropdown">Chế độ tối</span>
+                            </button>
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('logout') }}">

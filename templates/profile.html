@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Hồ sơ cá nhân - Hệ thống Quản lý Nội bộ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-4"><i class="bi bi-person-circle"></i> Hồ sơ cá nhân</h2>
+        
+        <!-- Avatar Section -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-image"></i> Avatar
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    {% if current_user.avatar %}
+                    <img id="avatarPreview" src="{{ url_for('get_avatar', filename=current_user.avatar) }}" 
+                         class="rounded-circle" style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #0dcaf0;">
+                    {% else %}
+                    <div id="avatarPreview" class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                         style="width: 150px; height: 150px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-size: 60px; font-weight: bold; border: 3px solid #0dcaf0;">
+                        {{ current_user.username[0].upper() }}
+                    </div>
+                    {% endif %}
+                </div>
+                <form id="avatarForm" enctype="multipart/form-data">
+                    <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display: none;">
+                    <button type="button" class="btn btn-info" onclick="document.getElementById('avatarInput').click()">
+                        <i class="bi bi-upload"></i> Chọn ảnh mới
+                    </button>
+                    <small class="d-block mt-2 text-muted">Tối đa 2MB (png, jpg, jpeg, gif, webp)</small>
+                </form>
+            </div>
+        </div>
+        
+        <!-- User Info Section -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i> Thông tin tài khoản
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Tên đăng nhập:</div>
+                    <div class="col-md-8">{{ current_user.username }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Email:</div>
+                    <div class="col-md-8">{{ current_user.email or 'Chưa có email' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Vai trò:</div>
+                    <div class="col-md-8">
+                        {% if current_user.role == 'admin' %}
+                        <span class="badge bg-danger">Admin</span>
+                        {% elif current_user.role == 'viewer' %}
+                        <span class="badge bg-info">Viewer</span>
+                        {% else %}
+                        <span class="badge bg-success">User</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 fw-bold">Ngày tạo:</div>
+                    <div class="col-md-8">{{ current_user.created_at.strftime('%d/%m/%Y %H:%M') if current_user.created_at else 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning"></i> Thao tác nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('change_password') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-key"></i> Đổi mật khẩu
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Quay lại Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Avatar upload handler
+    const avatarInput = document.getElementById('avatarInput');
+    const avatarPreview = document.getElementById('avatarPreview');
+    
+    avatarInput.addEventListener('change', async function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            
+            // Validate file size
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File quá lớn! Tối đa 2MB.');
+                this.value = '';
+                return;
+            }
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Vui lòng chọn file ảnh!');
+                this.value = '';
+                return;
+            }
+            
+            // Preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Update preview
+                if (avatarPreview.tagName === 'IMG') {
+                    avatarPreview.src = e.target.result;
+                } else {
+                    // Replace div with img
+                    const img = document.createElement('img');
+                    img.id = 'avatarPreview';
+                    img.src = e.target.result;
+                    img.className = 'rounded-circle';
+                    img.style.cssText = 'width: 150px; height: 150px; object-fit: cover; border: 3px solid #0dcaf0;';
+                    avatarPreview.parentNode.replaceChild(img, avatarPreview);
+                }
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload to server
+            const formData = new FormData();
+            formData.append('avatar', file);
+            
+            try {
+                const response = await fetch('/upload-avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success message
+                    const toast = document.createElement('div');
+                    toast.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+                    toast.style.zIndex = '9999';
+                    toast.innerHTML = `
+                        <i class="bi bi-check-circle"></i> Đã cập nhật avatar thành công!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                    
+                    // Reload page sau 1 giây để cập nhật avatar trong navbar
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Lỗi: ' + (data.error || 'Không thể upload avatar'));
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Lỗi khi upload avatar!');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

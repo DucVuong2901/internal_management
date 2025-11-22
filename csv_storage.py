@@ -17,7 +17,7 @@ class CSVUserStorage:
         if not os.path.exists(self.csv_file):
             with open(self.csv_file, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(['id', 'username', 'email', 'password_hash', 'role', 'created_at', 'is_active'])
+                writer.writerow(['id', 'username', 'email', 'password_hash', 'role', 'created_at', 'is_active', 'avatar'])
     
     def get_next_id(self):
         """Lấy ID tiếp theo"""
@@ -74,14 +74,14 @@ class CSVUserStorage:
         password_hash = generate_password_hash(password)
         created_at = datetime.utcnow().isoformat()
         
-        # Thêm user mới vào CSV
+        # Thêm user mới vào CSV (avatar mặc định là rỗng)
         with open(self.csv_file, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow([user_id, username, email or '', password_hash, role, created_at, 'True'])
+            writer.writerow([user_id, username, email or '', password_hash, role, created_at, 'True', ''])
         
         return self.get_user_by_id(user_id)
     
-    def update_user(self, user_id, username=None, email=None, role=None, password=None, is_active=None):
+    def update_user(self, user_id, username=None, email=None, role=None, password=None, is_active=None, avatar=None):
         """Cập nhật user"""
         users = self.get_all_users()
         updated = False
@@ -117,6 +117,10 @@ class CSVUserStorage:
                     user['is_active'] = is_active
                     updated = True
                 
+                if avatar is not None:
+                    user['avatar'] = avatar
+                    updated = True
+                
                 break
         
         if updated:
@@ -135,7 +139,7 @@ class CSVUserStorage:
         """Lưu tất cả users vào CSV"""
         with open(self.csv_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['id', 'username', 'email', 'password_hash', 'role', 'created_at', 'is_active'])
+            writer.writerow(['id', 'username', 'email', 'password_hash', 'role', 'created_at', 'is_active', 'avatar'])
             for user in users:
                 writer.writerow([
                     user['id'],
@@ -144,7 +148,8 @@ class CSVUserStorage:
                     user['password_hash'],
                     user['role'],
                     user.get('created_at', datetime.utcnow().isoformat()),
-                    str(user.get('is_active', True))
+                    str(user.get('is_active', True)),
+                    user.get('avatar', '')
                 ])
     
     def _dict_to_user(self, user_dict):
@@ -156,20 +161,22 @@ class CSVUserStorage:
             password_hash=user_dict['password_hash'],
             role=user_dict['role'],
             created_at=datetime.fromisoformat(user_dict.get('created_at', datetime.utcnow().isoformat())) if isinstance(user_dict.get('created_at'), str) else user_dict.get('created_at', datetime.utcnow()),
-            is_active=user_dict.get('is_active', True)
+            is_active=user_dict.get('is_active', True),
+            avatar=user_dict.get('avatar', '')
         )
 
 
 class User(UserMixin):
     """User class tương thích với Flask-Login"""
     def __init__(self, id, username, email=None, password_hash=None, role='user', 
-                 created_at=None, is_active=True):
+                 created_at=None, is_active=True, avatar=''):
         self.id = id
         self.username = username
         self.email = email
         self.password_hash = password_hash
         self.role = role
         self.created_at = created_at or datetime.utcnow()
+        self.avatar = avatar or ''
         # Lưu is_active vào __dict__ trực tiếp
         self.__dict__['is_active'] = is_active
     

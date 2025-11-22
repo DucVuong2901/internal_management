@@ -107,7 +107,8 @@ class ChatStorage:
             'message': message,
             'attachment_filename': attachment_filename,
             'attachment_original_name': attachment_original_name,
-            'is_read': False,
+            'is_read': False,  # Backward compatibility
+            'read_by': [],  # List of user IDs who have read this message
             'created_at': datetime.now().isoformat()
         }
         
@@ -242,6 +243,28 @@ class ChatStorage:
                 msg['is_read'] = True
         
         self._save_messages(messages)
+    
+    def mark_message_as_read_by_user(self, message_id, user_id):
+        """Đánh dấu user đã xem tin nhắn (cho group chat)"""
+        messages = self._load_messages()
+        updated = False
+        
+        for msg in messages:
+            if msg['id'] == message_id:
+                # Khởi tạo read_by nếu chưa có (backward compatibility)
+                if 'read_by' not in msg:
+                    msg['read_by'] = []
+                
+                # Thêm user vào danh sách đã xem nếu chưa có
+                if user_id not in msg['read_by']:
+                    msg['read_by'].append(user_id)
+                    updated = True
+                break
+        
+        if updated:
+            self._save_messages(messages)
+        
+        return updated
     
     def get_unread_count(self, user_id):
         """Đếm số tin nhắn chưa đọc của user"""

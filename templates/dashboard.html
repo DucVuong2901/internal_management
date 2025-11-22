@@ -27,6 +27,19 @@
     <button class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="markAllNotificationsReadDashboard()" title="Đánh dấu tất cả đã đọc">
       <i class="bi bi-check-all"></i> Đánh dấu đã đọc
     </button>
+    <div class="dropdown w-100 mb-2">
+      <button class="btn btn-sm btn-outline-danger w-100 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-trash"></i> Xóa thông báo cũ
+      </button>
+      <ul class="dropdown-menu w-100">
+        <li><a class="dropdown-item" href="#" onclick="deleteOldNotificationsDashboard(1);return false;">Cũ hơn 1 ngày</a></li>
+        <li><a class="dropdown-item" href="#" onclick="deleteOldNotificationsDashboard(3);return false;">Cũ hơn 3 ngày</a></li>
+        <li><a class="dropdown-item" href="#" onclick="deleteOldNotificationsDashboard(7);return false;">Cũ hơn 7 ngày</a></li>
+        <li><a class="dropdown-item" href="#" onclick="deleteOldNotificationsDashboard(30);return false;">Cũ hơn 30 ngày</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="#" onclick="deleteAllNotificationsDashboard();return false;">Xóa tất cả</a></li>
+      </ul>
+    </div>
     <button class="btn btn-sm btn-outline-primary w-100" onclick="showCreateNotificationModalDashboard()" title="Tạo thông báo">
       <i class="bi bi-plus-lg"></i> Tạo thông báo
     </button>
@@ -384,6 +397,50 @@ async function markAllNotificationsReadDashboard(){
   }catch(e){console.error(e);}
 }
 
+async function deleteOldNotificationsDashboard(days){
+  if(!confirm(`Bạn có chắc muốn xóa tất cả thông báo cũ hơn ${days} ngày?`)){
+    return;
+  }
+  
+  try{
+    const r=await fetch(`/notifications/cleanup?days=${days}`,{method:'POST'});
+    const d=await r.json();
+    if(d.success){
+      loadNotificationsDashboard();
+      if(d.deleted_count>0){
+        showToastDashboard(`✓ Đã xóa ${d.deleted_count} thông báo cũ`,'success');
+      }else{
+        showToastDashboard('ℹ Không có thông báo nào cần xóa','info');
+      }
+    }else{
+      showToastDashboard('✗ '+(d.error||'Lỗi không xác định'),'danger');
+    }
+  }catch(e){
+    console.error('Lỗi khi xóa thông báo cũ:',e);
+    showToastDashboard('✗ Lỗi: '+e.message,'danger');
+  }
+}
+
+async function deleteAllNotificationsDashboard(){
+  if(!confirm('⚠️ BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ THÔNG BÁO?\n\nHành động này không thể hoàn tác!')){
+    return;
+  }
+  
+  try{
+    const r=await fetch('/notifications/cleanup?days=0',{method:'POST'});
+    const d=await r.json();
+    if(d.success){
+      loadNotificationsDashboard();
+      showToastDashboard(`✓ Đã xóa tất cả ${d.deleted_count} thông báo`,'success');
+    }else{
+      showToastDashboard('✗ '+(d.error||'Lỗi không xác định'),'danger');
+    }
+  }catch(e){
+    console.error('Lỗi khi xóa tất cả thông báo:',e);
+    showToastDashboard('✗ Lỗi: '+e.message,'danger');
+  }
+}
+
 function showCreateNotificationModalDashboard(){
   const modal=document.createElement('div');
   modal.className='modal fade show d-block';
@@ -447,15 +504,26 @@ async function createNotificationDashboard(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({title,message,type,link})
     });
+    
+    // Kiểm tra content type của response
+    const contentType=r.headers.get('content-type');
+    if(!contentType||!contentType.includes('application/json')){
+      const text=await r.text();
+      console.error('Response không phải JSON:',text);
+      showToastDashboard('✗ Lỗi server: Response không hợp lệ','danger');
+      return;
+    }
+    
     const d=await r.json();
     if(d.success){
       showToastDashboard('✓ Đã tạo thông báo','success');
       document.querySelector('.modal').remove();
       loadNotificationsDashboard();
     }else{
-      showToastDashboard('✗ '+d.error,'danger');
+      showToastDashboard('✗ '+(d.error||'Lỗi không xác định'),'danger');
     }
   }catch(e){
+    console.error('Lỗi khi tạo thông báo:',e);
     showToastDashboard('✗ Lỗi: '+e.message,'danger');
   }
 }
@@ -485,12 +553,46 @@ function initDashboardSocket(){
   }catch(e){console.error('Socket init failed',e);}
 }
 
+/* === Auto Open Notification on Login === */
+async function autoOpenNotificationOnLogin(){
+  try{
+    // Kiểm tra xem có thông báo chưa đọc không
+    const r=await fetch('/notifications/unread-count');
+    const d=await r.json();
+    
+    if(d.success && d.count > 0){
+      // Kiểm tra session storage để không mở lại nếu đã mở trong session này
+      const hasOpenedInSession = sessionStorage.getItem('notificationAutoOpened');
+      
+      if(!hasOpenedInSession){
+        // Đợi 1 giây sau khi load trang để mở dropdown
+        setTimeout(()=>{
+          const panel=document.getElementById('notificationPanelDropdown');
+          if(panel){
+            panel.style.display='flex';
+            loadNotificationsDashboard();
+            
+            // Đánh dấu đã mở trong session này
+            sessionStorage.setItem('notificationAutoOpened', 'true');
+            
+            // Hiển thị toast thông báo
+            showToastDashboard(`🔔 Bạn có ${d.count} thông báo chưa đọc`,'info');
+          }
+        }, 1000);
+      }
+    }
+  }catch(e){console.error('Error checking notifications:',e);}
+}
+
 /* === Init === */
 document.addEventListener('DOMContentLoaded',()=>{
   loadNotificationsDashboard();
   updateNotificationCountDashboard();
   initDashboardSocket();
   setInterval(updateNotificationCountDashboard,30000);
+  
+  // Tự động mở thông báo khi vừa đăng nhập
+  autoOpenNotificationOnLogin();
 });
 </script>
 {% endblock %}

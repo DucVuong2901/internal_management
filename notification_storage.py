@@ -35,7 +35,8 @@ class NotificationStorage:
             json.dump(notifications, f, ensure_ascii=False, indent=2)
     
     def create_notification(self, title: str, message: str, type: str = 'info', 
-                          user_id: Optional[int] = None, link: Optional[str] = None) -> Dict:
+                          user_id: Optional[int] = None, link: Optional[str] = None,
+                          creator_id: Optional[int] = None) -> Dict:
         """
         Tạo thông báo mới
         
@@ -45,6 +46,7 @@ class NotificationStorage:
             type: Loại thông báo (info, success, warning, danger)
             user_id: ID người dùng (None = thông báo toàn hệ thống)
             link: Link liên quan (optional)
+            creator_id: ID người tạo thông báo (optional)
         
         Returns:
             Dict chứa thông tin thông báo đã tạo
@@ -61,6 +63,7 @@ class NotificationStorage:
             'type': type,
             'user_id': user_id,  # None = broadcast to all
             'link': link,
+            'creator_id': creator_id,  # ID người tạo
             'created_at': datetime.utcnow().isoformat(),
             'read_by': []  # List of user IDs who have read this
         }

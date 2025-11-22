@@ -400,6 +400,13 @@ def admin_required(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'admin':
+            # Kiểm tra nếu là API request (JSON) thì trả về JSON error
+            if request.is_json or request.path.startswith('/notifications') or request.path.startswith('/chat'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Bạn cần quyền admin để thực hiện thao tác này.'
+                }), 403
+            # Nếu là request HTML thì redirect
             flash('Bạn cần quyền admin để truy cập trang này.', 'danger')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
@@ -463,6 +470,12 @@ def logout():
     # Redirect về login
     return redirect(url_for('login'))
 
+@app.route('/profile')
+@login_required
+def profile():
+    """Trang hồ sơ cá nhân"""
+    return render_template('profile.html')
+
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -514,6 +527,80 @@ def change_password():
             flash('Có lỗi xảy ra khi đổi mật khẩu!', 'danger')
     
     return render_template('change_password.html')
+
+@app.route('/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    """Upload avatar cho user"""
+    if 'avatar' not in request.files:
+        return jsonify({'success': False, 'error': 'Không có file được chọn'}), 400
+    
+    file = request.files['avatar']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'Không có file được chọn'}), 400
+    
+    # Kiểm tra file type
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    if '.' not in file.filename:
+        return jsonify({'success': False, 'error': 'File không hợp lệ'}), 400
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    if ext not in allowed_extensions:
+        return jsonify({'success': False, 'error': 'Chỉ chấp nhận file ảnh (png, jpg, jpeg, gif, webp)'}), 400
+    
+    # Kiểm tra kích thước file (max 2MB)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > 2 * 1024 * 1024:  # 2MB
+        return jsonify({'success': False, 'error': 'File quá lớn (tối đa 2MB)'}), 400
+    
+    try:
+        # Tạo tên file unique
+        import uuid
+        filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+        
+        # Tạo thư mục avatars nếu chưa có
+        avatars_dir = os.path.join(DATA_DIR, 'avatars')
+        os.makedirs(avatars_dir, exist_ok=True)
+        
+        # Xóa avatar cũ nếu có
+        if current_user.avatar:
+            old_avatar_path = os.path.join(avatars_dir, current_user.avatar)
+            if os.path.exists(old_avatar_path):
+                try:
+                    os.remove(old_avatar_path)
+                except:
+                    pass
+        
+        # Lưu file mới
+        filepath = os.path.join(avatars_dir, filename)
+        file.save(filepath)
+        
+        # Cập nhật database
+        success = user_storage.update_user(current_user.id, avatar=filename)
+        
+        if success:
+            # Reload user để cập nhật avatar trong session
+            current_user.avatar = filename
+            
+            return jsonify({
+                'success': True,
+                'avatar_url': url_for('get_avatar', filename=filename)
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Không thể cập nhật avatar'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/avatars/<filename>')
+def get_avatar(filename):
+    """Lấy avatar file"""
+    avatars_dir = os.path.join(DATA_DIR, 'avatars')
+    return send_from_directory(avatars_dir, filename)
 
 @app.before_request
 def refresh_session():
@@ -2152,26 +2239,6 @@ def send_group_message():
         except:
             pass
         
-        # Tạo thông báo tự động cho tin nhắn mới
-        try:
-            # Tạo nội dung thông báo
-            msg_preview = message[:100] if message else '[File đính kèm]'
-            if attachment and attachment.filename:
-                msg_preview = f"{msg_preview} 📎 {attachment.filename}" if message else f"📎 {attachment.filename}"
-            
-            notification_storage.create_notification(
-                title=f"💬 Tin nhắn mới từ {current_user.username}",
-                message=msg_preview,
-                type='info',
-                link='/chat',
-                creator_id=current_user.id
-            )
-            
-            # Emit notification event
-            socketio.emit('new_notification', {}, broadcast=True)
-        except Exception as e:
-            app.logger.error(f"Failed to create chat notification: {e}")
-        
         return jsonify({
             'success': True,
             'message': new_message
@@ -2230,6 +2297,13 @@ def delete_chat_message(message_id):
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'error': 'Không thể xóa tin nhắn'}), 403
+
+@app.route('/chat/mark-read/<int:message_id>', methods=['POST'])
+@login_required
+def mark_message_read(message_id):
+    """Đánh dấu user đã xem tin nhắn"""
+    success = chat_storage.mark_message_as_read_by_user(message_id, current_user.id)
+    return jsonify({'success': success})
 
 @app.route('/chat/storage-info')
 @login_required
@@ -2332,9 +2406,8 @@ def mark_all_notifications_read():
 
 @app.route('/notifications/create', methods=['POST'])
 @login_required
-@admin_required
 def create_notification():
-    """API: Tạo thông báo mới (chỉ admin)"""
+    """API: Tạo thông báo mới (tất cả user đã đăng nhập)"""
     data = request.get_json()
     
     title = data.get('title', '').strip()
@@ -2354,18 +2427,54 @@ def create_notification():
         message=message,
         type=type,
         user_id=user_id,
-        link=link
+        link=link,
+        creator_id=current_user.id
     )
     
-    # Emit socket event để notify realtime
-    socketio.emit('new_notification', {
-        'notification': notification
-    }, broadcast=True)
+    # Emit socket event để notify realtime (nếu socketio có sẵn)
+    try:
+        socketio.emit('new_notification', {
+            'notification': notification
+        }, broadcast=True)
+    except:
+        pass  # Socketio chưa được khởi tạo, bỏ qua
     
     return jsonify({
         'success': True,
         'notification': notification
     })
+
+@app.route('/notifications/cleanup', methods=['POST'])
+@login_required
+def cleanup_old_notifications():
+    """API: Xóa thông báo cũ"""
+    days = request.args.get('days', default=7, type=int)
+    
+    try:
+        # days=0 nghĩa là xóa tất cả
+        if days == 0:
+            # Xóa tất cả thông báo
+            notifications = notification_storage._load_notifications()
+            deleted_count = len(notifications)
+            notification_storage._save_notifications([])
+        else:
+            # Giới hạn từ 1-90 ngày
+            if days < 1:
+                days = 1
+            elif days > 90:
+                days = 90
+            deleted_count = notification_storage.cleanup_old_notifications(days=days)
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'days': days
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
 @login_required
@@ -2375,10 +2484,13 @@ def delete_notification(notification_id):
     success = notification_storage.delete_notification(notification_id)
     
     if success:
-        # Emit socket event
-        socketio.emit('notification_deleted', {
-            'notification_id': notification_id
-        }, broadcast=True)
+        # Emit socket event (nếu socketio có sẵn)
+        try:
+            socketio.emit('notification_deleted', {
+                'notification_id': notification_id
+            }, broadcast=True)
+        except:
+            pass  # Socketio chưa được khởi tạo, bỏ qua
     
     return jsonify({'success': success})
 
