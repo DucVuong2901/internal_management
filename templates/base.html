@@ -280,6 +280,7 @@
     let miniChatSocket=null;
     let miniChatOpen=false;
     let lastMiniMessageCount=0;
+    let miniChatRefreshInterval=null;
     
     function toggleMiniChat(){
         const win=document.getElementById('miniChatWindow');
@@ -290,9 +291,27 @@
             btn.style.display='none';
             loadMiniChatMessages();
             initMiniChatSocket();
+            startMiniChatRefresh();
         }else{
             win.style.display='none';
             btn.style.display='flex';
+            stopMiniChatRefresh();
+        }
+    }
+    
+    function startMiniChatRefresh(){
+        if(miniChatRefreshInterval) return;
+        miniChatRefreshInterval = setInterval(()=>{
+            if(miniChatOpen){
+                loadMiniChatMessages();
+            }
+        }, 3000);
+    }
+    
+    function stopMiniChatRefresh(){
+        if(miniChatRefreshInterval){
+            clearInterval(miniChatRefreshInterval);
+            miniChatRefreshInterval = null;
         }
     }
     
